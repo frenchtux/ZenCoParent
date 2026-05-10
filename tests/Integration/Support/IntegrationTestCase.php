@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Factory\UriFactory;
+use Slim\Psr7\UploadedFile;
 
 abstract class IntegrationTestCase extends TestCase
 {
@@ -15,18 +16,23 @@ abstract class IntegrationTestCase extends TestCase
     protected \PDO $pdo;
 
     private static string $dbFile;
+    private static string $storageDir;
 
     protected function setUp(): void
     {
-        self::$dbFile = sys_get_temp_dir() . '/zencoparent_test_' . uniqid() . '.sqlite';
+        self::$dbFile     = sys_get_temp_dir() . '/zencoparent_test_' . uniqid() . '.sqlite';
+        self::$storageDir = sys_get_temp_dir() . '/zencoparent_storage_' . uniqid();
+        mkdir(self::$storageDir, 0755, true);
 
-        $_ENV['APP_ENV']   = 'testing';
-        $_ENV['APP_MODE']  = 'community';
-        $_ENV['DB_FILE']   = self::$dbFile;
-        $_ENV['JWT_SECRET']  = 'test-secret-that-is-long-enough-for-hs256-testing';
-        $_ENV['CSRF_SECRET'] = 'test-csrf-secret';
-        $_ENV['APP_SECRET']  = 'test-app-secret';
-        $_ENV['APP_DEBUG']   = 'true';
+        $_ENV['APP_ENV']      = 'testing';
+        $_ENV['APP_MODE']     = 'community';
+        $_ENV['DB_FILE']      = self::$dbFile;
+        $_ENV['JWT_SECRET']   = 'test-secret-that-is-long-enough-for-hs256-testing';
+        $_ENV['CSRF_SECRET']  = 'test-csrf-secret';
+        $_ENV['APP_SECRET']   = 'test-app-secret';
+        $_ENV['APP_DEBUG']    = 'true';
+        $_ENV['STORAGE_PATH'] = self::$storageDir;
+        $_ENV['STORAGE_URL']  = 'http://localhost/storage';
 
         $this->pdo = new \PDO('sqlite:' . self::$dbFile, options: [
             \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
@@ -50,6 +56,22 @@ abstract class IntegrationTestCase extends TestCase
         if (file_exists(self::$dbFile)) {
             @unlink(self::$dbFile);
         }
+        $this->removeDirectory(self::$storageDir);
+    }
+
+    private function removeDirectory(string $path): void
+    {
+        if (!is_dir($path)) {
+            return;
+        }
+        foreach (scandir($path) as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $sub = $path . DIRECTORY_SEPARATOR . $entry;
+            is_dir($sub) ? $this->removeDirectory($sub) : @unlink($sub);
+        }
+        @rmdir($path);
     }
 
     // ─── HTTP helpers ─────────────────────────────────────────────────────────
@@ -86,6 +108,46 @@ abstract class IntegrationTestCase extends TestCase
     protected function decodeJson(ResponseInterface $response): array
     {
         return json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    protected function makeUploadRequest(
+        string $path,
+        string $fileContent,
+        string $filename,
+        string $mimeType,
+        array  $fields  = [],
+        array  $cookies = [],
+    ): ResponseInterface {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'zcp_upload_');
+        file_put_contents($tmpFile, $fileContent);
+
+        $uploadedFile = new UploadedFile(
+            $tmpFile,
+            $filename,
+            $mimeType,
+            strlen($fileContent),
+            UPLOAD_ERR_OK,
+        );
+
+        $request = (new ServerRequestFactory())->createServerRequest(
+            'POST',
+            (new UriFactory())->createUri($path),
+        );
+        $request = $request->withUploadedFiles(['file' => $uploadedFile]);
+
+        if (!empty($fields)) {
+            $request = $request->withParsedBody($fields);
+        }
+
+        foreach ($cookies as $name => $value) {
+            $request = $request->withCookieParams(array_merge($request->getCookieParams(), [$name => $value]));
+        }
+
+        $response = $this->app->handle($request);
+
+        @unlink($tmpFile);
+
+        return $response;
     }
 
     // ─── Database fixtures ────────────────────────────────────────────────────
@@ -130,6 +192,42 @@ abstract class IntegrationTestCase extends TestCase
              VALUES (:id, :tid, :fn, :ln, :bd, '{}', '{}', :now, :now)"
         )->execute(['id' => $id, 'tid' => $tenantId, 'fn' => $firstName, 'ln' => $lastName, 'bd' => $birthdate, 'now' => $now]);
         return $id;
+    }
+
+    protected function createExpense(
+        string $tenantId,
+        string $paidBy,
+        float  $amount = 50.0,
+        string $date   = '2026-06-01',
+    ): string {
+        $id  = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $now = date('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            "INSERT INTO expenses (id, tenant_id, paid_by, amount, description, category, split_ratio, date, created_at, updated_at)
+             VALUES (:id, :tid, :paid_by, :amount, 'Test expense', NULL, '{}', :date, :now, :now)"
+        )->execute(['id' => $id, 'tid' => $tenantId, 'paid_by' => $paidBy, 'amount' => $amount, 'date' => $date, 'now' => $now]);
+        return $id;
+    }
+
+    protected function createThread(
+        string $tenantId,
+        array  $participantIds,
+        string $type = 'parents',
+    ): string {
+        $threadId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $now      = date('Y-m-d H:i:s');
+
+        $this->pdo->prepare(
+            "INSERT INTO threads (id, tenant_id, type, created_at) VALUES (:id, :tid, :type, :now)"
+        )->execute(['id' => $threadId, 'tid' => $tenantId, 'type' => $type, 'now' => $now]);
+
+        foreach ($participantIds as $userId) {
+            $this->pdo->prepare(
+                "INSERT OR IGNORE INTO thread_participants (thread_id, user_id, joined_at) VALUES (:tid, :uid, :now)"
+            )->execute(['tid' => $threadId, 'uid' => $userId, 'now' => $now]);
+        }
+
+        return $threadId;
     }
 
     protected function createEvent(

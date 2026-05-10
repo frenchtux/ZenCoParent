@@ -7,6 +7,7 @@ use ZenCoParent\Domain\Messaging\Thread;
 use ZenCoParent\Domain\Messaging\ThreadType;
 use ZenCoParent\Domain\Messaging\ThreadRepositoryInterface;
 use ZenCoParent\Domain\User\UserRepositoryInterface;
+use ZenCoParent\Domain\User\UserRole;
 use ZenCoParent\Domain\Shared\Exception\ValidationException;
 
 final class CreateThreadHandler
@@ -52,7 +53,7 @@ final class CreateThreadHandler
             if ($type === ThreadType::Parents) {
                 $tenantUsers = array_filter(
                     $tenantUsers,
-                    fn($user) => $user->getRole() === 'parent',
+                    fn($user) => $user->getRole() === UserRole::Parent,
                 );
             }
 
@@ -71,7 +72,7 @@ final class CreateThreadHandler
         if ($type === ThreadType::Parents) {
             foreach ($participantIds as $participantId) {
                 $user = $this->userRepo->findById($participantId);
-                if ($user === null || $user->getRole() !== 'parent') {
+                if ($user === null || $user->getRole() !== UserRole::Parent) {
                     throw ValidationException::withErrors([
                         'participantIds' => sprintf(
                             'User "%s" is not a parent and cannot participate in a parents thread.',

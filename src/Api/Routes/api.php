@@ -6,7 +6,10 @@ use Slim\Routing\RouteCollectorProxy;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\ChildController;
 use ZenCoParent\Api\Controllers\EventController;
+use ZenCoParent\Api\Controllers\ExpenseController;
 use ZenCoParent\Api\Controllers\MedicalRecordController;
+use ZenCoParent\Api\Controllers\PhotoController;
+use ZenCoParent\Api\Controllers\ThreadController;
 use ZenCoParent\Api\Controllers\UserController;
 use ZenCoParent\Api\Middleware\AuthMiddleware;
 use ZenCoParent\Api\Middleware\CsrfMiddleware;
@@ -66,4 +69,29 @@ return function (App $app): void {
     // Medical records — standalone creation (not linked to an event)
     $app->post('/medical-records', [MedicalRecordController::class, 'create'])
         ->add($authMiddleware);
+
+    // Photos — upload + list + delete (SaaS: MinIO, Community: local disk)
+    $app->group('/photos', function (RouteCollectorProxy $group): void {
+        $group->get('',         [PhotoController::class, 'index']);
+        $group->post('',        [PhotoController::class, 'upload']);
+        $group->delete('/{id}', [PhotoController::class, 'destroy']);
+    })->add($authMiddleware);
+
+    // Expenses — full CRUD with split ratios
+    $app->group('/expenses', function (RouteCollectorProxy $group): void {
+        $group->get('',         [ExpenseController::class, 'index']);
+        $group->post('',        [ExpenseController::class, 'create']);
+        $group->put('/{id}',    [ExpenseController::class, 'update']);
+        $group->delete('/{id}', [ExpenseController::class, 'destroy']);
+    })->add($authMiddleware);
+
+    // Threads + Messages — polling-based messaging
+    $app->group('/threads', function (RouteCollectorProxy $group): void {
+        $group->get('',    [ThreadController::class, 'index']);
+        $group->post('',   [ThreadController::class, 'create']);
+        $group->get('/{id}',  [ThreadController::class, 'show']);
+        $group->get('/{id}/messages',  [ThreadController::class, 'messages']);
+        $group->post('/{id}/messages', [ThreadController::class, 'sendMessage']);
+        $group->patch('/{id}/messages/{msgId}/read', [ThreadController::class, 'markRead']);
+    })->add($authMiddleware);
 };
