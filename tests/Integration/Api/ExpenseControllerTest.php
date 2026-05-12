@@ -124,7 +124,7 @@ final class ExpenseControllerTest extends IntegrationTestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $body = $this->decodeJson($response);
-        $this->assertSame(99.0, $body['data']['amount']);
+        $this->assertSame(99.0, (float) $body['data']['amount']);
         $this->assertSame('Updated description', $body['data']['description']);
     }
 

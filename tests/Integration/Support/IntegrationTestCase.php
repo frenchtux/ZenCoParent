@@ -271,6 +271,7 @@ abstract class IntegrationTestCase extends TestCase
         $sql = preg_replace('/JSONB/i', 'TEXT', $sql);
         $sql = preg_replace('/NUMERIC\(\d+,\d+\)/i', 'REAL', $sql);
         $sql = preg_replace('/SERIAL\s+PRIMARY\s+KEY/i', 'INTEGER PRIMARY KEY AUTOINCREMENT', $sql);
+        $sql = preg_replace('/DEFAULT\s+NOW\(\)/i', 'DEFAULT CURRENT_TIMESTAMP', $sql);
         return $sql;
     }
 }

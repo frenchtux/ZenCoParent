@@ -98,6 +98,8 @@ final class CreateThreadHandlerTest extends TestCase
         $user1 = $this->makeUser($this->userId1, UserRole::Parent);
         $user2 = $this->makeUser($this->userId2, UserRole::Parent);
 
+        // Creator (userId1) is added to the list, then ALL participants are validated
+        $this->userRepo->shouldReceive('findById')->with($this->userId1)->andReturn($user1);
         $this->userRepo->shouldReceive('findById')->with($this->userId2)->andReturn($user2);
         $this->threadRepo->shouldReceive('save')->once();
 

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ZenCoParent — Full Stack (Docker Compose)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build"],
+      "port": 80
+    },
+    {
+      "name": "PHP Dev Server — Community mode (SQLite, no Docker)",
+      "runtimeExecutable": "D:\\Users\\FXD\\AppData\\Local\\Microsoft\\WinGet\\Packages\\PHP.PHP.8.5_Microsoft.Winget.Source_8wekyb3d8bbwe\\php.exe",
+      "runtimeArgs": ["-S", "localhost:8080", "-t", "public/"],
+      "port": 8080
+    },
+    {
+      "name": "MinIO Console",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "minio"],
+      "port": 9001
+    }
+  ]
+}

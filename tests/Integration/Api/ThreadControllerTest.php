@@ -47,8 +47,8 @@ final class ThreadControllerTest extends IntegrationTestCase
         $body = $this->decodeJson($response);
         $this->assertTrue($body['success']);
         $this->assertSame('parents', $body['data']['type']);
-        $this->assertContains($this->userId, $body['data']['participant_ids']);
-        $this->assertContains($this->userId2, $body['data']['participant_ids']);
+        $this->assertContains($this->userId, $body['data']['participantIds']);
+        $this->assertContains($this->userId2, $body['data']['participantIds']);
     }
 
     public function test_create_family_thread_returns_201(): void
