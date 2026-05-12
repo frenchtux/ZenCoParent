@@ -18,21 +18,15 @@ final readonly class MessageDTO
 
     public static function fromMessage(\ZenCoParent\Domain\Messaging\Message $message): self
     {
-        $data = $message->toArray();
-
         return new self(
-            id:        $data['id'],
-            threadId:  $data['threadId'],
-            tenantId:  $data['tenantId'],
-            senderId:  $data['senderId'],
-            content:   $data['content'],
+            id:        $message->getId(),
+            threadId:  $message->getThreadId(),
+            tenantId:  $message->getTenantId(),
+            senderId:  $message->getSenderId(),
+            content:   $message->getContent(),
             isRead:    $message->isRead(),
-            readAt:    isset($data['readAt']) && $data['readAt'] instanceof \DateTimeInterface
-                           ? $data['readAt']->format(\DateTimeInterface::ATOM)
-                           : (is_string($data['readAt'] ?? null) ? $data['readAt'] : null),
-            createdAt: $data['createdAt'] instanceof \DateTimeInterface
-                           ? $data['createdAt']->format(\DateTimeInterface::ATOM)
-                           : (string) $data['createdAt'],
+            readAt:    $message->getReadAt()?->format(\DateTimeInterface::ATOM),
+            createdAt: $message->getCreatedAt()->format(\DateTimeInterface::ATOM),
         );
     }
 

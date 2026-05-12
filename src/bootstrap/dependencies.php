@@ -8,7 +8,12 @@ use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
 use ZenCoParent\Domain\MedicalRecord\MedicalRecordRepositoryInterface;
+use ZenCoParent\Domain\Expense\ExpenseRepositoryInterface;
+use ZenCoParent\Domain\Messaging\ThreadRepositoryInterface;
+use ZenCoParent\Domain\Messaging\MessageRepositoryInterface;
+use ZenCoParent\Domain\Photo\PhotoRepositoryInterface;
 use ZenCoParent\Domain\Shared\TransactionManagerInterface;
+use ZenCoParent\Domain\Storage\FileStorageInterface;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
 use ZenCoParent\Domain\User\UserRepositoryInterface;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
@@ -67,6 +72,50 @@ return function (ContainerBuilder $containerBuilder) {
             return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
                 ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMedicalRecordRepository($pdo)
                 : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalRecordRepository($pdo);
+        },
+
+        // File storage — MinIO for SaaS, local disk for Community
+        FileStorageInterface::class => function () {
+            if (($_ENV['APP_MODE'] ?? 'saas') === 'community') {
+                $basePath = $_ENV['STORAGE_PATH'] ?? (dirname(__DIR__, 2) . '/storage');
+                $baseUrl  = $_ENV['STORAGE_URL']  ?? '/storage';
+                return new \ZenCoParent\Infrastructure\Storage\LocalStorageService($basePath, $baseUrl);
+            }
+            return new \ZenCoParent\Infrastructure\Storage\MinIOStorageService(
+                endpoint:  $_ENV['MINIO_ENDPOINT']   ?? 'http://minio:9000',
+                bucket:    $_ENV['MINIO_BUCKET']     ?? 'zencoparent',
+                accessKey: $_ENV['MINIO_ACCESS_KEY'] ?? '',
+                secretKey: $_ENV['MINIO_SECRET_KEY'] ?? '',
+                region:    $_ENV['MINIO_REGION']     ?? 'us-east-1',
+            );
+        },
+
+        PhotoRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePhotoRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPhotoRepository($pdo);
+        },
+
+        ExpenseRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteExpenseRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLExpenseRepository($pdo);
+        },
+
+        ThreadRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteThreadRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLThreadRepository($pdo);
+        },
+
+        MessageRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMessageRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMessageRepository($pdo);
         },
 
         TransactionManagerInterface::class => function (ContainerInterface $c) {
