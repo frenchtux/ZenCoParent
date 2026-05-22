@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Calendrier</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar injected by nav.js -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Calendrier</h1>
+        <p class="page-subtitle">Planifiez les événements familiaux</p>
+      </div>
+      <div class="page-header-actions">
+        <div class="flex items-center gap-2">
+          <button class="btn btn-ghost btn-sm" id="cal-prev" title="Mois précédent">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="cal-today">Aujourd'hui</button>
+          <button class="btn btn-ghost btn-sm" id="cal-next" title="Mois suivant">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </button>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-new-event">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Nouvel événement
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Month label -->
+      <div class="calendar-header" style="margin-bottom: var(--space-4);">
+        <h2 class="calendar-month-label" id="cal-month-label">Chargement...</h2>
+        <!-- Legend -->
+        <div class="flex items-center gap-4" style="flex-wrap:wrap;">
+          <div class="flex items-center gap-2">
+            <div class="event-dot event-dot-rendezvous"></div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Rendez-vous</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="event-dot event-dot-activite"></div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Activité</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="event-dot event-dot-medical"></div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Médical</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="event-dot event-dot-vacances"></div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Vacances</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="event-dot event-dot-autre"></div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Autre</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main layout: calendar + day panel -->
+      <div class="grid-2" style="grid-template-columns: 1fr 320px; gap: var(--space-6); align-items: start;">
+        <!-- Calendar grid -->
+        <div id="calendar-grid" class="calendar-grid">
+          <div style="grid-column:span 7;padding:var(--space-8);text-align:center;">
+            <div class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+          </div>
+        </div>
+
+        <!-- Day panel -->
+        <div id="day-panel" class="day-panel" style="display:none;">
+          <div class="day-panel-header">
+            <div class="day-panel-title" id="day-panel-title">Sélectionnez un jour</div>
+          </div>
+          <div class="day-panel-body" id="day-panel-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Event Modal -->
+<div class="modal-backdrop" id="event-modal" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="event-modal-title">Nouvel événement</h2>
+      <button class="modal-close-btn" onclick="closeModal('event-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="event-form">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label required" for="event-title">Titre</label>
+          <input class="form-input" type="text" id="event-title" placeholder="Ex : Visite pédiatrique" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="event-type">Type</label>
+            <select class="form-select" id="event-type" required>
+              <option value="rendezvous">Rendez-vous</option>
+              <option value="activite">Activité</option>
+              <option value="medical">Médical</option>
+              <option value="vacances">Vacances</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="event-child-id">Enfant concerné</label>
+            <select class="form-select" id="event-child-id">
+              <option value="">— Aucun enfant —</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="event-date">Date</label>
+            <input class="form-input" type="date" id="event-date" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="event-time">Heure (optionnel)</label>
+            <input class="form-input" type="time" id="event-time" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-description">Description</label>
+          <textarea class="form-textarea" id="event-description" placeholder="Détails supplémentaires..." rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('event-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="event-save-btn">Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/inviter.js"></script>
+<script src="/frontend/js/calendrier.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  renderNav('calendrier.html');
+  await calendrierInit();
+})();
+</script>
+</body>
+</html>

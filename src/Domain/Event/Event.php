@@ -154,6 +154,7 @@ final class Event
 
     public function toArray(): array
     {
+        $startAtStr = $this->startAt->format(\DateTimeInterface::ATOM);
         return [
             'id'          => $this->id,
             'tenant_id'   => $this->tenantId,
@@ -161,7 +162,10 @@ final class Event
             'title'       => $this->title,
             'description' => $this->description,
             'type'        => $this->type->value,
-            'start_at'    => $this->startAt->format(\DateTimeInterface::ATOM),
+            'start_at'    => $startAtStr,
+            'start_date'  => $this->startAt->format('Y-m-d'),
+            'start_time'  => $this->allDay ? null : $this->startAt->format('H:i'),
+            'date'        => $this->startAt->format('Y-m-d'),
             'end_at'      => $this->endAt->format(\DateTimeInterface::ATOM),
             'all_day'     => $this->allDay,
             'created_by'  => $this->createdBy,

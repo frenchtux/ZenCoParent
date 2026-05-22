@@ -6,7 +6,11 @@ namespace ZenCoParent\Domain\Event;
 
 enum EventType: string
 {
-    case Custody  = 'custody';
-    case Activity = 'activity';
-    case Medical  = 'medical';
+    case Custody     = 'custody';
+    case Activity    = 'activity';
+    case Medical     = 'medical';
+    case Rendezvous  = 'rendezvous';
+    case Activite    = 'activite';
+    case Vacances    = 'vacances';
+    case Autre       = 'autre';
 }

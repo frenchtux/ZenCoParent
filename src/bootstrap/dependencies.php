@@ -7,8 +7,9 @@ use ZenCoParent\Domain\Auth\OAuthAccountRepositoryInterface;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
-use ZenCoParent\Domain\MedicalRecord\MedicalRecordRepositoryInterface;
 use ZenCoParent\Domain\Expense\ExpenseRepositoryInterface;
+use ZenCoParent\Domain\Invitation\InvitationRepositoryInterface;
+use ZenCoParent\Domain\MedicalRecord\MedicalRecordRepositoryInterface;
 use ZenCoParent\Domain\Messaging\ThreadRepositoryInterface;
 use ZenCoParent\Domain\Messaging\MessageRepositoryInterface;
 use ZenCoParent\Domain\Photo\PhotoRepositoryInterface;
@@ -16,8 +17,16 @@ use ZenCoParent\Domain\Shared\TransactionManagerInterface;
 use ZenCoParent\Domain\Storage\FileStorageInterface;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
 use ZenCoParent\Domain\User\UserRepositoryInterface;
+use ZenCoParent\Application\Auth\RegisterHandler;
+use ZenCoParent\Application\Invitation\AcceptInvitationHandler;
+use ZenCoParent\Application\Invitation\CreateInvitationHandler;
+use ZenCoParent\Application\Invitation\GetInvitationHandler;
+use ZenCoParent\Application\User\ChangePasswordHandler;
+use ZenCoParent\Application\User\GetUserHandler;
+use ZenCoParent\Application\User\UpdateUserHandler;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
 use ZenCoParent\Infrastructure\Auth\JWTService;
+use ZenCoParent\Infrastructure\Cache\NullRateLimiter;
 use ZenCoParent\Infrastructure\Cache\RedisRateLimiter;
 use ZenCoParent\Infrastructure\Database\Connection;
 use ZenCoParent\Infrastructure\Persistence\PDOTransactionManager;
@@ -52,12 +61,16 @@ return function (ContainerBuilder $containerBuilder) {
 
         RefreshTokenRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLRefreshTokenRepository($pdo);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteRefreshTokenRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLRefreshTokenRepository($pdo);
         },
 
         OAuthAccountRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLOAuthAccountRepository($pdo);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteOAuthAccountRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLOAuthAccountRepository($pdo);
         },
 
         EventRepositoryInterface::class => function (ContainerInterface $c) {
@@ -97,6 +110,13 @@ return function (ContainerBuilder $containerBuilder) {
                 : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPhotoRepository($pdo);
         },
 
+        InvitationRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo);
+        },
+
         ExpenseRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
             return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
@@ -120,6 +140,60 @@ return function (ContainerBuilder $containerBuilder) {
 
         TransactionManagerInterface::class => function (ContainerInterface $c) {
             return new PDOTransactionManager($c->get(\PDO::class));
+        },
+
+        // Auth handlers
+        RegisterHandler::class => function (ContainerInterface $c) {
+            return new RegisterHandler(
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(RefreshTokenRepositoryInterface::class),
+                $c->get(JWTService::class),
+            );
+        },
+
+        // Invitation handlers
+        CreateInvitationHandler::class => function (ContainerInterface $c) {
+            return new CreateInvitationHandler($c->get(InvitationRepositoryInterface::class));
+        },
+
+        GetInvitationHandler::class => function (ContainerInterface $c) {
+            return new GetInvitationHandler(
+                $c->get(InvitationRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+            );
+        },
+
+        AcceptInvitationHandler::class => function (ContainerInterface $c) {
+            return new AcceptInvitationHandler(
+                $c->get(InvitationRepositoryInterface::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(RefreshTokenRepositoryInterface::class),
+                $c->get(JWTService::class),
+            );
+        },
+
+        // Invitation controller
+        \ZenCoParent\Api\Controllers\InvitationController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\InvitationController(
+                $c->get(CreateInvitationHandler::class),
+                $c->get(GetInvitationHandler::class),
+                $c->get(AcceptInvitationHandler::class),
+                $c->get(InvitationRepositoryInterface::class),
+            );
+        },
+
+        // User handlers
+        GetUserHandler::class => function (ContainerInterface $c) {
+            return new GetUserHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        UpdateUserHandler::class => function (ContainerInterface $c) {
+            return new UpdateUserHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        ChangePasswordHandler::class => function (ContainerInterface $c) {
+            return new ChangePasswordHandler($c->get(UserRepositoryInterface::class));
         },
 
         // JWT Service
@@ -150,8 +224,11 @@ return function (ContainerBuilder $containerBuilder) {
             ]);
         },
 
-        // Rate Limiter
+        // Rate Limiter — NullRateLimiter in community mode (no Redis)
         RedisRateLimiter::class => function (ContainerInterface $c) {
+            if (($_ENV['APP_MODE'] ?? 'saas') === 'community') {
+                return new NullRateLimiter();
+            }
             $authConfig = require __DIR__ . '/../Config/auth.php';
             return new RedisRateLimiter(
                 $c->get(\Predis\Client::class),

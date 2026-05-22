@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Connexion</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      background: var(--color-bg);
+      overflow: hidden;
+    }
+
+    /* ── Illustration Panel (Left) ── */
+    .login-panel-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-12);
+      background: linear-gradient(160deg, #3D5F52 0%, #2A4539 100%);
+      background-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E"),
+        linear-gradient(160deg, #3D5F52 0%, #2A4539 100%);
+      background-size: 256px 256px, cover;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-panel-left::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .login-panel-left::after {
+      content: '';
+      position: absolute;
+      bottom: -60px;
+      left: -60px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .login-illustration {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-8);
+      z-index: 1;
+      text-align: center;
+    }
+
+    .login-logo-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-xl);
+      background: rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .login-logo-icon svg {
+      width: 36px;
+      height: 36px;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .login-app-name {
+      font-family: var(--font-display);
+      font-size: 3.5rem;
+      font-weight: var(--font-light);
+      color: #FFFFFF;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .login-tagline {
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: rgba(255,255,255,0.6);
+      line-height: 1.7;
+      max-width: 340px;
+    }
+
+    .login-features {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      margin-top: var(--space-4);
+    }
+
+    .login-feature {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      color: rgba(255,255,255,0.7);
+      font-size: var(--text-sm);
+    }
+
+    .login-feature-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(196, 160, 80, 0.8);
+      flex-shrink: 0;
+    }
+
+    /* ── Form Panel (Right) ── */
+    .login-panel-right {
+      width: 480px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-8);
+      background: var(--color-bg);
+      overflow-y: auto;
+    }
+
+    .login-form-wrapper {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .login-form-title {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: var(--font-medium);
+      color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .login-form-sub {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-8);
+      line-height: 1.6;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    .login-submit-btn {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      font-size: var(--text-base);
+      border-radius: var(--radius-lg);
+      margin-top: var(--space-2);
+    }
+
+    .login-footer-note {
+      margin-top: var(--space-6);
+      text-align: center;
+      font-size: var(--text-xs);
+      color: var(--color-text-light);
+      line-height: 1.7;
+    }
+
+    /* ── Form error message ── */
+    .login-error-banner {
+      display: none;
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-error-bg);
+      border: 1px solid var(--color-error);
+      border-radius: var(--radius-md);
+      color: var(--color-error);
+      font-size: var(--text-sm);
+    }
+
+    .login-error-banner.visible {
+      display: block;
+    }
+
+    @media (max-width: 800px) {
+      body { flex-direction: column; overflow: auto; }
+      .login-panel-left { flex: none; min-height: 200px; padding: var(--space-8); }
+      .login-app-name { font-size: var(--text-3xl); }
+      .login-features { display: none; }
+      .login-panel-right { width: 100%; padding: var(--space-6); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Left illustration panel -->
+  <aside class="login-panel-left" aria-hidden="true">
+    <div class="login-illustration">
+      <div class="login-logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.3" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+        </svg>
+      </div>
+      <h1 class="login-app-name">ZenCoParent</h1>
+      <p class="login-tagline">La co-parentalité sereine pour les familles recomposées. Planifiez ensemble, communiquez simplement.</p>
+      <div class="login-features">
+        <div class="login-feature">
+          <span class="login-feature-dot"></span>
+          <span>Calendrier partagé pour les enfants</span>
+        </div>
+        <div class="login-feature">
+          <span class="login-feature-dot"></span>
+          <span>Messagerie privée et familiale</span>
+        </div>
+        <div class="login-feature">
+          <span class="login-feature-dot"></span>
+          <span>Gestion des dépenses partagées</span>
+        </div>
+        <div class="login-feature">
+          <span class="login-feature-dot"></span>
+          <span>Suivi médical des enfants</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="login-panel-right">
+    <div class="login-form-wrapper">
+      <h2 class="login-form-title">Connexion</h2>
+      <p class="login-form-sub">Accédez à votre espace co-parental.</p>
+
+      <div class="login-error-banner" id="login-error" role="alert"></div>
+
+      <form class="login-form" id="login-form" novalidate>
+        <div class="form-group">
+          <label class="form-label required" for="email">Adresse e-mail</label>
+          <input
+            class="form-input"
+            type="email"
+            id="email"
+            name="email"
+            placeholder="votre@email.com"
+            autocomplete="email"
+            required
+          />
+          <span class="form-error hidden" id="email-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required" for="password">Mot de passe</label>
+          <input
+            class="form-input"
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+          <span class="form-error hidden" id="password-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required" for="tenant_slug">Espace famille (slug)</label>
+          <input
+            class="form-input"
+            type="text"
+            id="tenant_slug"
+            name="tenant_slug"
+            placeholder="demo"
+            autocomplete="off"
+            required
+          />
+          <span class="form-hint">Identifiant de votre espace co-parental</span>
+          <span class="form-error hidden" id="slug-error"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary login-submit-btn" id="login-btn">
+          Se connecter
+        </button>
+      </form>
+
+      <p class="login-footer-note">
+        Pas encore de compte ? <a href="/frontend/register.html" style="color:var(--color-primary);text-decoration:none;">Créer ma famille</a><br />
+        <br />ZenCoParent &mdash; plateforme confidentielle<br />
+        Toutes les données sont chiffrées et sécurisées.
+      </p>
+    </div>
+  </main>
+
+  <script src="/frontend/js/api.js"></script>
+  <script>
+    (function () {
+      // Redirect if already logged in
+      try {
+        const stored = sessionStorage.getItem('zenco_user');
+        if (stored) {
+          window.location.href = '/frontend/dashboard.html';
+          return;
+        }
+      } catch {}
+
+      const form = document.getElementById('login-form');
+      const btn  = document.getElementById('login-btn');
+      const errorBanner = document.getElementById('login-error');
+
+      function clearErrors() {
+        document.querySelectorAll('.form-error').forEach(el => {
+          el.textContent = '';
+          el.classList.add('hidden');
+        });
+        document.querySelectorAll('.form-input').forEach(el => {
+          el.classList.remove('error');
+        });
+        errorBanner.textContent = '';
+        errorBanner.classList.remove('visible');
+      }
+
+      function showFieldError(fieldId, errorId, message) {
+        const field = document.getElementById(fieldId);
+        const errorEl = document.getElementById(errorId);
+        if (field) field.classList.add('error');
+        if (errorEl) {
+          errorEl.textContent = message;
+          errorEl.classList.remove('hidden');
+        }
+      }
+
+      function showBannerError(message) {
+        errorBanner.textContent = message;
+        errorBanner.classList.add('visible');
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        clearErrors();
+
+        const email      = document.getElementById('email').value.trim();
+        const password   = document.getElementById('password').value;
+        const tenantSlug = document.getElementById('tenant_slug').value.trim();
+
+        // Client-side validation
+        let hasError = false;
+        if (!email) {
+          showFieldError('email', 'email-error', "L'adresse e-mail est requise.");
+          hasError = true;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showFieldError('email', 'email-error', "Format d'e-mail invalide.");
+          hasError = true;
+        }
+        if (!password) {
+          showFieldError('password', 'password-error', 'Le mot de passe est requis.');
+          hasError = true;
+        }
+        if (!tenantSlug) {
+          showFieldError('tenant_slug', 'slug-error', "L'espace famille est requis.");
+          hasError = true;
+        }
+        if (hasError) return;
+
+        // Loading state
+        btn.classList.add('loading');
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = originalText; // kept hidden by loading class
+
+        try {
+          const result = await api.post('/auth/login', {
+            email,
+            password,
+            tenant_slug: tenantSlug,
+          });
+
+          if (result && result.success && result.data && result.data.user) {
+            sessionStorage.setItem('zenco_user', JSON.stringify(result.data.user));
+            window.location.href = '/frontend/dashboard.html';
+          } else {
+            showBannerError('Connexion échouée. Vérifiez vos identifiants.');
+          }
+        } catch (err) {
+          if (err.status === 401 || err.status === 422) {
+            showBannerError('Email, mot de passe ou espace famille incorrect.');
+          } else {
+            showBannerError(err.message || 'Une erreur est survenue. Réessayez.');
+          }
+        } finally {
+          btn.classList.remove('loading');
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

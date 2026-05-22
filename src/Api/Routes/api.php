@@ -7,6 +7,7 @@ use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\ChildController;
 use ZenCoParent\Api\Controllers\EventController;
 use ZenCoParent\Api\Controllers\ExpenseController;
+use ZenCoParent\Api\Controllers\InvitationController;
 use ZenCoParent\Api\Controllers\MedicalRecordController;
 use ZenCoParent\Api\Controllers\PhotoController;
 use ZenCoParent\Api\Controllers\ThreadController;
@@ -23,7 +24,10 @@ return function (App $app): void {
 
     // ── Global middleware (applied to every route, outermost = last added) ──
     $app->add(new CsrfMiddleware());
-    $app->add(new RateLimitMiddleware($container->get(RedisRateLimiter::class)));
+    // Rate limiting only in saas mode (community has no Redis)
+    if (($_ENV['APP_MODE'] ?? 'saas') !== 'community') {
+        $app->add(new RateLimitMiddleware($container->get(RedisRateLimiter::class)));
+    }
 
     // ── Auth routes (no JWT required) ────────────────────────────────────────
     $app->group('/auth', function (RouteCollectorProxy $group) use ($container): void {
@@ -37,22 +41,34 @@ return function (App $app): void {
         // Google OAuth flow
         $group->get('/oauth/google/{tenantSlug}',           [AuthController::class, 'oauthRedirect']);
         $group->get('/oauth/google/{tenantSlug}/callback',  [AuthController::class, 'oauthCallback']);
+
+        // Self-registration
+        $group->post('/register', [AuthController::class, 'register']);
     });
+
+    // ── Invitation public routes (no auth) ───────────────────────────────────
+    $app->get('/invitations/{token}',         [InvitationController::class, 'show']);
+    $app->post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
     // ── Protected routes ─────────────────────────────────────────────────────
     $authMiddleware = new AuthMiddleware($container->get(JWTService::class));
 
-    // Users — GET open to all authenticated; POST restricted to admins
+    // Users — full management
     $app->group('/users', function (RouteCollectorProxy $group): void {
-        $group->get('',  [UserController::class, 'index']);
-        $group->post('', [UserController::class, 'create'])
+        $group->get('',    [UserController::class, 'index']);
+        $group->post('',   [UserController::class, 'create'])
               ->add(new RequireRoleMiddleware(['admin']));
+        $group->get('/me', [UserController::class, 'me']);
+        $group->get('/{id}',              [UserController::class, 'show']);
+        $group->put('/{id}',              [UserController::class, 'update']);
+        $group->patch('/{id}/password',   [UserController::class, 'changePassword']);
     })->add($authMiddleware);
 
     // Children — all authenticated parents/admins
     $app->group('/children', function (RouteCollectorProxy $group): void {
-        $group->get('',  [ChildController::class, 'index']);
-        $group->post('', [ChildController::class, 'create']);
+        $group->get('',         [ChildController::class, 'index']);
+        $group->post('',        [ChildController::class, 'create']);
+        $group->put('/{id}',    [ChildController::class, 'update']);
         // Medical history nested under /children/{id}/medical-history
         $group->get('/{id}/medical-history', [MedicalRecordController::class, 'childHistory']);
     })->add($authMiddleware);
@@ -75,6 +91,12 @@ return function (App $app): void {
         $group->get('',         [PhotoController::class, 'index']);
         $group->post('',        [PhotoController::class, 'upload']);
         $group->delete('/{id}', [PhotoController::class, 'destroy']);
+    })->add($authMiddleware);
+
+    // Invitations — protected routes
+    $app->group('/invitations', function (RouteCollectorProxy $group): void {
+        $group->get('',  [InvitationController::class, 'list']);
+        $group->post('', [InvitationController::class, 'create']);
     })->add($authMiddleware);
 
     // Expenses — full CRUD with split ratios

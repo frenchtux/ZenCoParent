@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Enfants</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar injected by nav.js -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Enfants</h1>
+        <p class="page-subtitle">Gérez les profils et l'historique médical</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary btn-sm" id="btn-new-child">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Ajouter un enfant
+        </button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="grid-auto-fill-280" id="children-grid">
+        <div class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Child Modal -->
+<div class="modal-backdrop" id="child-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="child-modal-title">Ajouter un enfant</h2>
+      <button class="modal-close-btn" onclick="closeModal('child-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="child-form">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="child-first-name">Prénom</label>
+            <input class="form-input" type="text" id="child-first-name" placeholder="Prénom" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="child-last-name">Nom de famille</label>
+            <input class="form-input" type="text" id="child-last-name" placeholder="Nom" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="child-birthdate">Date de naissance</label>
+          <input class="form-input" type="date" id="child-birthdate" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="child-notes">Notes</label>
+          <textarea class="form-textarea" id="child-notes" placeholder="Allergies, informations importantes..." rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('child-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="child-save-btn">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Medical Record Modal -->
+<div class="modal-backdrop" id="med-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">
+        Antécédent médical — <span id="med-modal-child-name" style="color:var(--color-primary)"></span>
+      </h2>
+      <button class="modal-close-btn" onclick="closeModal('med-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="med-form">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="med-type">Type de record</label>
+            <select class="form-select" id="med-type" required>
+              <option value="consultation">Consultation</option>
+              <option value="vaccination">Vaccination</option>
+              <option value="allergie">Allergie</option>
+              <option value="hospitalisation">Hospitalisation</option>
+              <option value="chirurgie">Chirurgie</option>
+              <option value="traitement">Traitement</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="med-date">Date</label>
+            <input class="form-input" type="date" id="med-date" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="med-description">Description</label>
+          <textarea class="form-textarea" id="med-description" placeholder="Ex : Vaccination ROR effectuée, rappel dans 3 mois..." rows="4" required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="med-doctor">Médecin / praticien</label>
+          <input class="form-input" type="text" id="med-doctor" placeholder="Dr Dupont" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('med-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="med-save-btn">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/inviter.js"></script>
+<script src="/frontend/js/enfants.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  renderNav('enfants.html');
+  await enfantsInit();
+})();
+</script>
+</body>
+</html>

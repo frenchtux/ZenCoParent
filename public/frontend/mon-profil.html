@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Mon profil</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar injected by nav.js -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Mon profil</h1>
+        <p class="page-subtitle">Gérez vos informations personnelles</p>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
+
+        <!-- Left column -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-6);">
+
+          <!-- Card: Informations personnelles -->
+          <div class="card">
+            <div class="card-header">
+              <h2 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);margin:0;">Informations personnelles</h2>
+            </div>
+            <div class="card-body">
+              <form id="profile-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label required" for="profile-first-name">Prénom</label>
+                    <input class="form-input" type="text" id="profile-first-name" placeholder="Votre prénom" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label required" for="profile-last-name">Nom</label>
+                    <input class="form-input" type="text" id="profile-last-name" placeholder="Votre nom" required />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="profile-phone">Téléphone</label>
+                  <input class="form-input" type="tel" id="profile-phone" placeholder="+33 6 00 00 00 00" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="profile-address">Adresse</label>
+                  <input class="form-input" type="text" id="profile-address" placeholder="Votre adresse postale" />
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:var(--space-2);">
+                  <button type="submit" class="btn btn-primary" id="profile-save-btn">Enregistrer</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Card: Sécurité -->
+          <div class="card">
+            <div class="card-header">
+              <h2 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);margin:0;">Sécurité</h2>
+            </div>
+            <div class="card-body">
+              <form id="password-form">
+                <div class="form-group">
+                  <label class="form-label required" for="pwd-current">Mot de passe actuel</label>
+                  <input class="form-input" type="password" id="pwd-current" placeholder="Votre mot de passe actuel" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="pwd-new">Nouveau mot de passe</label>
+                  <input class="form-input" type="password" id="pwd-new" placeholder="Minimum 8 caractères" minlength="8" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="pwd-confirm">Confirmer le mot de passe</label>
+                  <input class="form-input" type="password" id="pwd-confirm" placeholder="Répéter le nouveau mot de passe" minlength="8" required />
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:var(--space-2);">
+                  <button type="submit" class="btn btn-primary" id="pwd-save-btn">Modifier le mot de passe</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right column: Profile summary -->
+        <div>
+          <div class="card" style="position:sticky;top:var(--space-6);">
+            <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-4);padding:var(--space-8) var(--space-6);text-align:center;">
+              <div class="avatar" id="profile-avatar" style="width:80px;height:80px;font-size:var(--text-2xl);font-weight:600;background:var(--color-primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">??</div>
+
+              <div>
+                <div id="profile-full-name" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);line-height:1.2;">—</div>
+                <div id="profile-email" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-top:var(--space-1);">—</div>
+              </div>
+
+              <span id="profile-role-badge" class="badge badge-neutral">—</span>
+
+              <div id="profile-member-since" style="font-size:var(--text-xs);color:var(--color-text-tertiary,var(--color-text-secondary));">—</div>
+
+              <div style="margin-top:var(--space-2);padding:var(--space-3);background:var(--color-surface-subtle,#f7f7f5);border-radius:var(--radius-md,6px);font-size:var(--text-xs);color:var(--color-text-secondary);line-height:1.5;width:100%;">
+                L'email ne peut pas être modifié ici.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/inviter.js"></script>
+<script src="/frontend/js/mon-profil.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  renderNav('mon-profil.html');
+  await monProfilInit(user);
+})();
+</script>
+</body>
+</html>

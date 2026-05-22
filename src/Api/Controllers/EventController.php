@@ -46,18 +46,25 @@ final class EventController
         $userId   = (string) $request->getAttribute('userId');
         $body     = (array) $request->getParsedBody();
 
-        foreach (['title', 'type', 'start_at', 'end_at'] as $field) {
-            if (empty($body[$field])) {
-                return ApiResponse::error($response, "Field '{$field}' is required", 400);
-            }
+        if (empty($body['title'])) {
+            return ApiResponse::error($response, "Le champ 'title' est requis.", 400);
+        }
+        if (empty($body['type'])) {
+            return ApiResponse::error($response, "Le champ 'type' est requis.", 400);
+        }
+
+        // Accept start_at/end_at OR start_date/start_time (frontend format)
+        [$startAt, $endAt] = self::resolveStartEnd($body);
+        if ($startAt === null) {
+            return ApiResponse::error($response, "La date de début est requise (start_at ou start_date).", 400);
         }
 
         $command = new CreateEventCommand(
             tenantId:    $tenantId,
             title:       trim((string) $body['title']),
             type:        (string) $body['type'],
-            startAt:     (string) $body['start_at'],
-            endAt:       (string) $body['end_at'],
+            startAt:     $startAt,
+            endAt:       $endAt,
             allDay:      (bool) ($body['all_day'] ?? false),
             createdBy:   $userId,
             childId:     isset($body['child_id'])    ? (string) $body['child_id']    : null,
@@ -85,10 +92,16 @@ final class EventController
         $tenantId = (string) $request->getAttribute('tenantId');
         $body     = (array) $request->getParsedBody();
 
-        foreach (['title', 'type', 'start_at', 'end_at'] as $field) {
-            if (empty($body[$field])) {
-                return ApiResponse::error($response, "Field '{$field}' is required", 400);
-            }
+        if (empty($body['title'])) {
+            return ApiResponse::error($response, "Le champ 'title' est requis.", 400);
+        }
+        if (empty($body['type'])) {
+            return ApiResponse::error($response, "Le champ 'type' est requis.", 400);
+        }
+
+        [$startAt, $endAt] = self::resolveStartEnd($body);
+        if ($startAt === null) {
+            return ApiResponse::error($response, "La date de début est requise (start_at ou start_date).", 400);
         }
 
         $command = new UpdateEventCommand(
@@ -96,8 +109,8 @@ final class EventController
             tenantId:    $tenantId,
             title:       trim((string) $body['title']),
             type:        (string) $body['type'],
-            startAt:     (string) $body['start_at'],
-            endAt:       (string) $body['end_at'],
+            startAt:     $startAt,
+            endAt:       $endAt,
             allDay:      (bool) ($body['all_day'] ?? false),
             childId:     isset($body['child_id'])    ? (string) $body['child_id']    : null,
             description: isset($body['description']) ? (string) $body['description'] : null,
@@ -114,5 +127,37 @@ final class EventController
         $this->deleteHandler->handle((string) $args['id'], $tenantId);
 
         return ApiResponse::success($response, null, 204);
+    }
+
+    /**
+     * Accept both start_at/end_at (legacy/API) and start_date/start_time (frontend) formats.
+     * Returns [startAt, endAt] strings or [null, null] if no date provided.
+     */
+    private static function resolveStartEnd(array $body): array
+    {
+        // Already in full datetime format
+        if (!empty($body['start_at'])) {
+            $endAt = !empty($body['end_at']) ? (string) $body['end_at'] : $body['start_at'];
+            return [(string) $body['start_at'], $endAt];
+        }
+
+        // Frontend format: start_date + optional start_time
+        $date = $body['start_date'] ?? null;
+        if (empty($date)) {
+            return [null, null];
+        }
+
+        $time    = !empty($body['start_time']) ? (string) $body['start_time'] : '00:00';
+        $startAt = $date . 'T' . $time . ':00';
+
+        // end_at = start + 1 hour (default)
+        try {
+            $start  = new \DateTimeImmutable($startAt);
+            $endAt  = $start->modify('+1 hour')->format('Y-m-d\TH:i:s');
+        } catch (\Exception) {
+            $endAt = $startAt;
+        }
+
+        return [$startAt, $endAt];
     }
 }

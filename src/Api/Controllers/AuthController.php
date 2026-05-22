@@ -14,6 +14,8 @@ use ZenCoParent\Application\Auth\OAuthGoogleCommand;
 use ZenCoParent\Application\Auth\OAuthGoogleHandler;
 use ZenCoParent\Application\Auth\RefreshTokenCommand;
 use ZenCoParent\Application\Auth\RefreshTokenHandler;
+use ZenCoParent\Application\Auth\RegisterCommand;
+use ZenCoParent\Application\Auth\RegisterHandler;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
 
 final class AuthController
@@ -24,7 +26,29 @@ final class AuthController
         private RefreshTokenHandler $refreshHandler,
         private OAuthGoogleHandler  $oauthHandler,
         private GoogleOAuthService  $googleOAuth,
+        private RegisterHandler     $registerHandler,
     ) {}
+
+    public function register(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+
+        $familyName = trim((string) ($body['family_name'] ?? ''));
+        $email      = trim((string) ($body['email']       ?? ''));
+        $password   = (string) ($body['password']         ?? '');
+        $firstName  = trim((string) ($body['first_name']  ?? ''));
+        $lastName   = trim((string) ($body['last_name']   ?? ''));
+
+        if ($familyName === '' || $email === '' || $password === '' || $firstName === '' || $lastName === '') {
+            return ApiResponse::error($response, 'Champs requis : family_name, email, password, first_name, last_name', 400);
+        }
+
+        $result = $this->registerHandler->handle(
+            new RegisterCommand($familyName, $email, $password, $firstName, $lastName)
+        );
+
+        return $this->applyAuthCookies($response, $result)->withStatus(201);
+    }
 
     public function login(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {

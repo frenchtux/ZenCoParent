@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Utilisateurs</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar injected by nav.js -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Utilisateurs</h1>
+        <p class="page-subtitle">Gérez les comptes du tenant</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary btn-sm" id="btn-create-user">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Ajouter un utilisateur
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stat cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-6);">
+        <div class="stat-card">
+          <div class="stat-card-label">Total</div>
+          <div class="stat-card-value" id="stat-total">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Actifs</div>
+          <div class="stat-card-value" id="stat-active">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Administrateurs</div>
+          <div class="stat-card-value" id="stat-admins">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Parents</div>
+          <div class="stat-card-value" id="stat-parents">—</div>
+        </div>
+      </div>
+
+      <!-- Users table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);margin:0;">Liste des utilisateurs</h2>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Email</th>
+                  <th>Rôle</th>
+                  <th>Statut</th>
+                  <th>Créé le</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:var(--space-8);">
+                    <div class="loading-state" style="display:inline-flex;">
+                      <div class="spinner spinner-sm"></div><span>Chargement...</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Créer un utilisateur -->
+<div class="modal-backdrop" id="create-user-modal" role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="create-modal-title">Créer un utilisateur</h2>
+      <button class="modal-close-btn" onclick="closeModal('create-user-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="create-user-form">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="create-first-name">Prénom</label>
+            <input class="form-input" type="text" id="create-first-name" placeholder="Prénom" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label required" for="create-last-name">Nom</label>
+            <input class="form-input" type="text" id="create-last-name" placeholder="Nom de famille" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="create-email">Adresse e-mail</label>
+          <input class="form-input" type="email" id="create-email" placeholder="exemple@domaine.fr" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="create-password">Mot de passe</label>
+          <input class="form-input" type="password" id="create-password" placeholder="Minimum 8 caractères" minlength="8" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="create-role">Rôle</label>
+          <select class="form-select" id="create-role" required>
+            <option value="parent">Parent</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="create-phone">Téléphone</label>
+            <input class="form-input" type="tel" id="create-phone" placeholder="+33 6 00 00 00 00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="create-address">Adresse</label>
+            <input class="form-input" type="text" id="create-address" placeholder="Adresse postale" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('create-user-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="create-save-btn">Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Modifier l'utilisateur -->
+<div class="modal-backdrop" id="edit-user-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="edit-modal-title">Modifier l'utilisateur</h2>
+      <button class="modal-close-btn" onclick="closeModal('edit-user-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="edit-user-form">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <p id="edit-email-display" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;padding:var(--space-2) 0;"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="edit-first-name">Prénom</label>
+            <input class="form-input" type="text" id="edit-first-name" placeholder="Prénom" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label required" for="edit-last-name">Nom</label>
+            <input class="form-input" type="text" id="edit-last-name" placeholder="Nom de famille" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="edit-phone">Téléphone</label>
+            <input class="form-input" type="tel" id="edit-phone" placeholder="+33 6 00 00 00 00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-address">Adresse</label>
+            <input class="form-input" type="text" id="edit-address" placeholder="Adresse postale" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-role">Rôle</label>
+          <select class="form-select" id="edit-role">
+            <option value="parent">Parent</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-primary);">
+            <input type="checkbox" id="edit-is-active" style="width:16px;height:16px;accent-color:var(--color-primary);" />
+            Compte actif
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit-user-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="edit-save-btn">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Réinitialiser le mot de passe -->
+<div class="modal-backdrop" id="password-modal" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="password-modal-title">Réinitialiser le mot de passe</h2>
+      <button class="modal-close-btn" onclick="closeModal('password-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="password-reset-form">
+      <div class="modal-body">
+        <p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-4);">
+          En tant qu'administrateur, vous pouvez définir un nouveau mot de passe sans connaître le mot de passe actuel.
+        </p>
+        <div class="form-group">
+          <label class="form-label required" for="reset-new-password">Nouveau mot de passe</label>
+          <input class="form-input" type="password" id="reset-new-password" placeholder="Minimum 8 caractères" minlength="8" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="reset-confirm-password">Confirmer le mot de passe</label>
+          <input class="form-input" type="password" id="reset-confirm-password" placeholder="Répéter le mot de passe" minlength="8" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('password-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="password-save-btn">Réinitialiser</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/utilisateurs.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  if (user.role !== 'admin') {
+    window.location.href = '/frontend/dashboard.html';
+    return;
+  }
+  renderNav('utilisateurs.html');
+  await utilisateursInit(user);
+})();
+</script>
+</body>
+</html>

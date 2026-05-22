@@ -10,8 +10,7 @@ final readonly class UpdateExpenseCommand
         public string  $tenantId,
         public float   $amount,
         public string  $description,
-        public ?string $category,
-        public array   $splitRatio,
         public string  $date,
+        public ?string $category,
     ) {}
 }
