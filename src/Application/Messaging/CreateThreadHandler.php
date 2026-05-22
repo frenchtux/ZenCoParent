@@ -53,7 +53,7 @@ final class CreateThreadHandler
             if ($type === ThreadType::Parents) {
                 $tenantUsers = array_filter(
                     $tenantUsers,
-                    fn($user) => $user->getRole() === UserRole::Parent,
+                    fn($user) => $user->getRole() === UserRole::Parent || $user->getRole() === UserRole::Admin,
                 );
             }
 
@@ -69,10 +69,14 @@ final class CreateThreadHandler
         }
 
         // 4. Validate participants based on type
+        // Admin users are allowed in any thread type (they manage the platform)
         if ($type === ThreadType::Parents) {
             foreach ($participantIds as $participantId) {
                 $user = $this->userRepo->findById($participantId);
-                if ($user === null || $user->getRole() !== UserRole::Parent) {
+                if ($user === null || (
+                    $user->getRole() !== UserRole::Parent &&
+                    $user->getRole() !== UserRole::Admin
+                )) {
                     throw ValidationException::withErrors([
                         'participantIds' => sprintf(
                             'User "%s" is not a parent and cannot participate in a parents thread.',

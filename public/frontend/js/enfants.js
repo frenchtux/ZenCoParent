@@ -126,11 +126,10 @@
         <div style="display:flex;flex-direction:column;gap:var(--space-3);">
           ${items.map(rec => `
             <div class="medical-record-item">
-              <div class="medical-record-date">${formatDate(rec.date || rec.created_at || '')}</div>
+              <div class="medical-record-date">${formatDate(rec.recorded_at || rec.date || rec.created_at || '')}</div>
               <div class="medical-record-content">
-                ${rec.record_type ? `<div class="medical-record-type">${escapeHtml(rec.record_type)}</div>` : ''}
-                <div class="medical-record-desc">${escapeHtml(rec.description || rec.notes || '')}</div>
-                ${rec.doctor ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Dr ${escapeHtml(rec.doctor)}</div>` : ''}
+                <div class="medical-record-desc">${escapeHtml(rec.report || rec.description || rec.notes || '')}</div>
+                ${rec.practitioner || rec.doctor ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Dr ${escapeHtml(rec.practitioner || rec.doctor)}</div>` : ''}
               </div>
             </div>
           `).join('')}
@@ -228,13 +227,13 @@
 
     const payload = {
       child_id:    editingMedRecord.childId,
-      record_type: document.getElementById('med-type').value,
-      description: document.getElementById('med-description').value.trim(),
-      date:        document.getElementById('med-date').value || null,
-      doctor:      document.getElementById('med-doctor').value.trim() || null,
+      // API expects 'report' (not 'description') and 'recorded_at' (not 'date')
+      report:      document.getElementById('med-description').value.trim(),
+      recorded_at: document.getElementById('med-date').value || null,
+      practitioner:document.getElementById('med-doctor').value.trim() || null,
     };
 
-    if (!payload.description) {
+    if (!payload.report) {
       toast('La description est requise.', 'warning');
       setLoading(btn, false);
       return;

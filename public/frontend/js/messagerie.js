@@ -71,13 +71,15 @@
         ? formatShortDate(thread.last_message_at)
         : '';
       const preview   = thread.last_message_preview || thread.description || '—';
+      // Display: thread has no title in DB — use type label as title
+      const displayTitle = thread.title || threadTypeLabel(typeKey);
       return `
-        <div class="thread-item ${isActive ? 'active' : ''}" data-thread-id="${thread.id}" onclick="selectThread(${thread.id})">
+        <div class="thread-item ${isActive ? 'active' : ''}" data-thread-id="${thread.id}" onclick="selectThread('${thread.id}')">
           <div class="avatar avatar-md ${typeAvatarColor(typeKey)}" style="flex-shrink:0;">
             ${escapeHtml(typeInitials(typeKey))}
           </div>
           <div class="thread-item-content">
-            <div class="thread-item-title">${escapeHtml(thread.title || 'Sans titre')}</div>
+            <div class="thread-item-title">${escapeHtml(displayTitle)}</div>
             <div class="thread-item-preview">${escapeHtml(preview)}</div>
           </div>
           <div class="thread-item-meta">
@@ -274,16 +276,17 @@
       setLoading(btn, true);
 
       const participantEls = document.getElementById('thread-participants');
-      const selectedParticipants = Array.from(participantEls.selectedOptions).map(o => parseInt(o.value));
+      // participant IDs are UUIDs — do NOT parse as int
+      const selectedParticipants = Array.from(participantEls.selectedOptions).map(o => o.value);
 
       const payload = {
-        title: document.getElementById('thread-title').value.trim(),
-        thread_type: document.getElementById('thread-type').value,
+        // API expects 'type', not 'thread_type'
+        type: document.getElementById('thread-type').value,
         participant_ids: selectedParticipants,
       };
 
-      if (!payload.title) {
-        toast('Le titre est requis.', 'warning');
+      if (!payload.type) {
+        toast('Le type de conversation est requis.', 'warning');
         setLoading(btn, false);
         return;
       }

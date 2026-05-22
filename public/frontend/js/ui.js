@@ -272,9 +272,11 @@
    */
   function eventTypeLabel(type) {
     const map = {
+      'custody':    'Garde',
+      'activity':   'Activité',
+      'medical':    'Médical',
       'rendezvous': 'Rendez-vous',
       'activite':   'Activité',
-      'medical':    'Médical',
       'vacances':   'Vacances',
       'autre':      'Autre',
     };
