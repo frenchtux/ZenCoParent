@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
+use ZenCoParent\Application\License\LicenseService;
 use ZenCoParent\Domain\Auth\OAuthAccountRepositoryInterface;
+use ZenCoParent\Domain\License\LicenseRepositoryInterface;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
@@ -222,6 +224,26 @@ return function (ContainerBuilder $containerBuilder) {
                 'password' => $redisConfig['password'],
                 'database' => $redisConfig['database'],
             ]);
+        },
+
+        // License repository + service (SaaS only)
+        LicenseRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLLicenseRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        LicenseService::class => function (ContainerInterface $c) {
+            return new LicenseService(
+                $c->get(LicenseRepositoryInterface::class),
+                $_ENV['LICENSE_MASTER_KEY'] ?? 'zencoparent-default-master-key-change-in-production',
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\LicenseController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\LicenseController(
+                $c->get(LicenseService::class)
+            );
         },
 
         // Rate Limiter — NullRateLimiter in community mode (no Redis)
