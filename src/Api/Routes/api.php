@@ -29,6 +29,13 @@ return function (App $app): void {
         $app->add(new RateLimitMiddleware($container->get(RedisRateLimiter::class)));
     }
 
+    // ── Public mode endpoint ─────────────────────────────────────────────────
+    $app->get('/mode', function ($request, $response) {
+        $data = ['mode' => $_ENV['APP_MODE'] ?? 'saas', 'version' => '1.0'];
+        $response->getBody()->write(json_encode(['success' => true, 'data' => $data]));
+        return $response->withHeader('Content-Type', 'application/json');
+    });
+
     // ── Auth routes (no JWT required) ────────────────────────────────────────
     $app->group('/auth', function (RouteCollectorProxy $group) use ($container): void {
         $group->post('/login',   [AuthController::class, 'login']);

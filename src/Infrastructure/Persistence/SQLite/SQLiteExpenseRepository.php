@@ -59,7 +59,7 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
             'amount'      => $expense->getAmount(),
             'description' => $expense->getDescription(),
             'category'    => $expense->getCategory(),
-            'split_ratio' => '{}',
+            'split_ratio' => json_encode($expense->getSplitRatio()),
             'date'        => $expense->getDate()->format('Y-m-d'),
         ]);
     }

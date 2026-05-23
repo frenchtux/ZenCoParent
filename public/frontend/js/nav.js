@@ -99,6 +99,20 @@
     return (f + l).toUpperCase() || '?';
   }
 
+  /* ── Theme injection ─────────────────────────────────────── */
+
+  const IS_SAAS = window.location.port === '8081';
+
+  (function applyTheme() {
+    if (!IS_SAAS) return;
+    if (document.getElementById('zenco-theme-saas')) return;
+    const link = document.createElement('link');
+    link.id   = 'zenco-theme-saas';
+    link.rel  = 'stylesheet';
+    link.href = '/frontend/css/theme-saas.css';
+    document.head.appendChild(link);
+  })();
+
   /**
    * Render the sidebar into #app-shell before .main-content.
    * @param {string} activePage - filename like 'dashboard.html'

@@ -21,7 +21,7 @@ final class RedisRateLimiter
 
             $this->redis->multi();
             $this->redis->zremrangebyscore($redisKey, '-inf', (string) $windowStart);
-            $this->redis->zadd($redisKey, [$now => (string) $now]);
+            $this->redis->zadd($redisKey, [(string) $now => $now]);
             $this->redis->zcard($redisKey);
             $this->redis->expire($redisKey, $this->windowSeconds * 2);
             $results = $this->redis->exec();

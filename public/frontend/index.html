@@ -295,6 +295,14 @@
 
   <script src="/frontend/js/api.js"></script>
   <script>
+    // Inject SaaS theme on port 8081
+    if (window.location.port === '8081') {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = '/frontend/css/theme-saas.css';
+      document.head.appendChild(l);
+    }
+  </script>
+  <script>
     (function () {
       // Redirect if already logged in
       try {

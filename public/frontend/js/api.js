@@ -6,7 +6,7 @@
 (function (global) {
   'use strict';
 
-  const BASE_URL = 'http://localhost:8080';
+  const BASE_URL = window.location.origin;
 
   /**
    * Read a cookie by name.
