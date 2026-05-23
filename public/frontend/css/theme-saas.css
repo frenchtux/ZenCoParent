@@ -1,0 +1,108 @@
+/* ============================================================
+   ZenCoParent SaaS — Theme Override
+   Indigo/violet professional palette (contrasts with Community green)
+   ============================================================ */
+
+:root {
+  /* ── Core backgrounds ─────────────────────────────────────── */
+  --color-bg:           #F5F7FF;
+  --color-surface:      #FFFFFF;
+  --color-surface-alt:  #EEF1FB;
+  --color-border:       #DDE1F2;
+  --color-border-light: #E8EBFA;
+
+  /* ── Primary: indigo ──────────────────────────────────────── */
+  --color-primary:      #5B6CF9;
+  --color-primary-dark: #3D4EE8;
+  --color-primary-light:#8190FB;
+  --color-primary-bg:   #EEF0FF;
+
+  /* ── Accent: violet ───────────────────────────────────────── */
+  --color-accent:       #7C3AED;
+  --color-accent-dark:  #6D28D9;
+  --color-accent-light: #A78BFA;
+  --color-accent-bg:    #F5F3FF;
+
+  /* ── Text ─────────────────────────────────────────────────── */
+  --color-text:         #1E1B4B;
+  --color-text-muted:   #6B7280;
+  --color-text-light:   #9CA3AF;
+
+  /* ── Feedback ─────────────────────────────────────────────── */
+  --color-success:      #059669;
+  --color-success-bg:   #ECFDF5;
+  --color-warning:      #D97706;
+  --color-warning-bg:   #FFFBEB;
+  --color-error:        #DC2626;
+  --color-error-bg:     #FEF2F2;
+  --color-info:         #2563EB;
+  --color-info-bg:      #EFF6FF;
+
+  /* ── Sidebar: deep indigo gradient ───────────────────────── */
+  --sidebar-bg-start:   #1E1B4B;
+  --sidebar-bg-end:     #312E81;
+}
+
+/* ── Sidebar brand tagline ────────────────────────────────── */
+.sidebar-brand-tagline::after {
+  content: ' · Pro';
+  font-size: 0.65rem;
+  background: rgba(91, 108, 249, 0.25);
+  color: rgba(255,255,255,0.8);
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── SaaS mode badge in sidebar brand ────────────────────── */
+.sidebar-brand::after {
+  content: 'SaaS';
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
+}
+
+/* ── Login panel gradient ─────────────────────────────────── */
+.login-panel-left {
+  background: linear-gradient(160deg, #1E1B4B 0%, #312E81 100%) !important;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E"),
+    linear-gradient(160deg, #1E1B4B 0%, #312E81 100%) !important;
+  background-size: 256px 256px, cover !important;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+/* ── Badges ───────────────────────────────────────────────── */
+.badge-primary {
+  background: var(--color-primary-bg);
+  color: var(--color-primary-dark);
+}
+
+/* ── Active nav link ──────────────────────────────────────── */
+.nav-link.active {
+  background: rgba(91, 108, 249, 0.18);
+  color: #FFFFFF;
+}
+.nav-link.active svg {
+  color: #FFFFFF;
+}
+
+/* ── Avatar colors remain consistent ─────────────────────── */
+.avatar-green {
+  background: var(--color-primary-bg);
+  color: var(--color-primary-dark);
+}

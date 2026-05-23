@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Licence</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <style>
+    body { min-height: 100vh; display: flex; background: var(--color-bg); overflow: hidden; }
+
+    .license-panel-left {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: var(--space-12);
+      background: linear-gradient(160deg, #3D5F52 0%, #2A4539 100%);
+      position: relative; overflow: hidden;
+    }
+    .license-panel-left::before {
+      content: ''; position: absolute; top: -80px; right: -80px;
+      width: 320px; height: 320px; border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .license-illustration {
+      display: flex; flex-direction: column; align-items: center;
+      gap: var(--space-6); z-index: 1; text-align: center;
+    }
+    .license-icon {
+      width: 72px; height: 72px; border-radius: var(--radius-xl);
+      background: rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    .license-icon svg { width: 36px; height: 36px; color: rgba(255,255,255,0.9); }
+    .license-app-name {
+      font-family: var(--font-display); font-size: 3rem; font-weight: var(--font-light);
+      color: #FFF; line-height: 1;
+    }
+    .license-tagline {
+      font-size: var(--text-base); color: rgba(255,255,255,0.65);
+      line-height: 1.7; max-width: 340px;
+    }
+    .license-info-box {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6);
+      text-align: left; width: 100%; max-width: 380px;
+    }
+    .license-info-label {
+      font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: var(--space-2);
+    }
+    .license-install-key {
+      font-family: monospace; font-size: var(--text-lg); font-weight: 600;
+      color: #FFF; letter-spacing: 0.05em; word-break: break-all;
+    }
+    .license-copy-btn {
+      margin-top: var(--space-3); padding: var(--space-2) var(--space-4);
+      border: 1px solid rgba(255,255,255,0.25); border-radius: var(--radius-md);
+      background: transparent; color: rgba(255,255,255,0.8);
+      font-size: var(--text-sm); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .license-copy-btn:hover { background: rgba(255,255,255,0.1); }
+    .trial-badge {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-3); border-radius: 999px;
+      font-size: var(--text-xs); font-weight: 600;
+    }
+    .trial-badge.active { background: rgba(16,185,129,0.2); color: #6EE7B7; }
+    .trial-badge.expired { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+    .trial-badge.licensed { background: rgba(59,130,246,0.2); color: #93C5FD; }
+
+    /* Right panel */
+    .license-panel-right {
+      width: 480px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--space-8); background: var(--color-bg); overflow-y: auto;
+    }
+    .license-form-wrapper { width: 100%; max-width: 380px; }
+    .license-form-title {
+      font-family: var(--font-display); font-size: var(--text-3xl);
+      font-weight: var(--font-medium); color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+    .license-form-sub {
+      font-size: var(--text-sm); color: var(--color-text-muted);
+      margin-bottom: var(--space-8); line-height: 1.6;
+    }
+    .status-card {
+      padding: var(--space-5); border-radius: var(--radius-lg);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface); margin-bottom: var(--space-6);
+    }
+    .status-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--space-2) 0; font-size: var(--text-sm);
+    }
+    .status-row + .status-row { border-top: 1px solid var(--color-border-light); }
+    .status-key { color: var(--color-text-muted); }
+    .status-val { font-weight: 600; color: var(--color-text); }
+    .status-val.ok { color: var(--color-success); }
+    .status-val.warn { color: var(--color-warning); }
+    .status-val.err { color: var(--color-error); }
+
+    .activation-form { display: flex; flex-direction: column; gap: var(--space-4); }
+    .act-key-input {
+      font-family: monospace; font-size: var(--text-base);
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .error-banner {
+      display: none; padding: var(--space-3) var(--space-4);
+      background: var(--color-error-bg); border: 1px solid var(--color-error);
+      border-radius: var(--radius-md); color: var(--color-error); font-size: var(--text-sm);
+    }
+    .error-banner.visible { display: block; }
+    .success-banner {
+      display: none; padding: var(--space-3) var(--space-4);
+      background: var(--color-success-bg); border: 1px solid var(--color-success);
+      border-radius: var(--radius-md); color: var(--color-success); font-size: var(--text-sm);
+    }
+    .success-banner.visible { display: block; }
+    .back-link {
+      display: block; margin-top: var(--space-6);
+      text-align: center; font-size: var(--text-sm);
+      color: var(--color-text-muted); text-decoration: none;
+    }
+    .back-link:hover { color: var(--color-primary); }
+
+    @media (max-width: 800px) {
+      body { flex-direction: column; overflow: auto; }
+      .license-panel-left { flex: none; min-height: 220px; padding: var(--space-8); }
+      .license-app-name { font-size: var(--text-3xl); }
+      .license-panel-right { width: 100%; padding: var(--space-6); }
+    }
+  </style>
+</head>
+<body>
+  <aside class="license-panel-left" aria-hidden="true">
+    <div class="license-illustration">
+      <div class="license-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.3" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+        </svg>
+      </div>
+      <h1 class="license-app-name">ZenCoParent</h1>
+      <p class="license-tagline">Gestion de la licence de votre instance SaaS.</p>
+
+      <div class="license-info-box" id="sidebar-info" style="display:none">
+        <p class="license-info-label">Clé d'installation</p>
+        <p class="license-install-key" id="sidebar-install-key">—</p>
+        <button class="license-copy-btn" id="copy-btn" type="button">Copier</button>
+        <p class="license-info-label" style="margin-top:var(--space-4)">Statut</p>
+        <span class="trial-badge" id="sidebar-badge">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="license-panel-right">
+    <div class="license-form-wrapper">
+      <h2 class="license-form-title">Licence SaaS</h2>
+      <p class="license-form-sub">Activez votre instance ou suivez votre période d'essai.</p>
+
+      <div class="status-card" id="status-card">
+        <div class="status-row">
+          <span class="status-key">Clé d'installation</span>
+          <span class="status-val" id="install-key-display">Chargement…</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Période d'essai</span>
+          <span class="status-val" id="trial-display">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Activée</span>
+          <span class="status-val" id="active-display">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Statut global</span>
+          <span class="status-val" id="licensed-display">—</span>
+        </div>
+      </div>
+
+      <div id="activation-section">
+        <h3 style="font-size:var(--text-base);font-weight:600;color:var(--color-text);margin-bottom:var(--space-4);">
+          Activer la licence
+        </h3>
+        <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-4);line-height:1.6;">
+          Envoyez votre clé d'installation au support ZenCoParent pour recevoir votre clé d'activation.
+        </p>
+
+        <div class="error-banner" id="error-banner" role="alert"></div>
+        <div class="success-banner" id="success-banner" role="status"></div>
+
+        <form class="activation-form" id="activation-form" novalidate>
+          <div class="form-group">
+            <label class="form-label required" for="activation_key">Clé d'activation</label>
+            <input class="form-input act-key-input" type="text" id="activation_key"
+              name="activation_key" placeholder="ACT-XXXX-XXXX-XXXX-XXXX-XXXX"
+              autocomplete="off" required />
+          </div>
+          <button type="submit" class="btn btn-primary" id="activate-btn" style="width:100%;">
+            Activer
+          </button>
+        </form>
+      </div>
+
+      <a href="/frontend/dashboard.html" class="back-link">← Retour au tableau de bord</a>
+    </div>
+  </main>
+
+  <script src="/frontend/js/api.js"></script>
+  <script>
+    // Theme
+    if (window.location.port === '8081') {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = '/frontend/css/theme-saas.css';
+      document.head.appendChild(l);
+    }
+  </script>
+  <script>
+    (function () {
+      const errorBanner   = document.getElementById('error-banner');
+      const successBanner = document.getElementById('success-banner');
+
+      function showError(msg) {
+        errorBanner.textContent = msg;
+        errorBanner.classList.add('visible');
+        successBanner.classList.remove('visible');
+      }
+      function showSuccess(msg) {
+        successBanner.textContent = msg;
+        successBanner.classList.add('visible');
+        errorBanner.classList.remove('visible');
+      }
+
+      function renderStatus(data) {
+        const installKeyEl  = document.getElementById('install-key-display');
+        const trialEl       = document.getElementById('trial-display');
+        const activeEl      = document.getElementById('active-display');
+        const licensedEl    = document.getElementById('licensed-display');
+        const sidebarKey    = document.getElementById('sidebar-install-key');
+        const sidebarBadge  = document.getElementById('sidebar-badge');
+        const sidebarInfo   = document.getElementById('sidebar-info');
+        const actSection    = document.getElementById('activation-section');
+
+        installKeyEl.textContent = data.installation_key;
+        sidebarKey.textContent   = data.installation_key;
+        sidebarInfo.style.display = 'block';
+
+        // Trial
+        if (data.is_trial_active) {
+          trialEl.textContent = 'Active — ' + data.trial_days_remaining + ' jour(s) restant(s)';
+          trialEl.className = 'status-val ok';
+        } else {
+          trialEl.textContent = 'Expirée';
+          trialEl.className = 'status-val err';
+        }
+
+        // Active
+        if (data.is_active) {
+          activeEl.textContent = 'Oui — ' + (data.activated_at ? new Date(data.activated_at).toLocaleDateString('fr-FR') : '');
+          activeEl.className = 'status-val ok';
+        } else {
+          activeEl.textContent = 'Non';
+          activeEl.className = 'status-val warn';
+        }
+
+        // Licensed
+        if (data.is_licensed) {
+          licensedEl.textContent = 'Fonctionnel ✓';
+          licensedEl.className = 'status-val ok';
+          sidebarBadge.textContent = data.is_active ? '✓ Activée' : '⏳ Essai';
+          sidebarBadge.className = 'trial-badge ' + (data.is_active ? 'licensed' : 'active');
+          if (data.is_active) {
+            actSection.style.display = 'none'; // Already activated
+          }
+        } else {
+          licensedEl.textContent = 'Licence expirée';
+          licensedEl.className = 'status-val err';
+          sidebarBadge.textContent = '⚠ Expirée';
+          sidebarBadge.className = 'trial-badge expired';
+        }
+      }
+
+      // Load current status
+      api.get('/license').then(res => {
+        if (res && res.success) renderStatus(res.data);
+      }).catch(() => {});
+
+      // Copy installation key
+      document.getElementById('copy-btn').addEventListener('click', function () {
+        const key = document.getElementById('sidebar-install-key').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+          this.textContent = 'Copié !';
+          setTimeout(() => { this.textContent = 'Copier'; }, 2000);
+        });
+      });
+
+      // Activation form
+      document.getElementById('activation-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        errorBanner.classList.remove('visible');
+        successBanner.classList.remove('visible');
+
+        const key = document.getElementById('activation_key').value.trim();
+        if (!key) { showError("La clé d'activation est requise."); return; }
+
+        const btn = document.getElementById('activate-btn');
+        btn.disabled = true;
+        btn.classList.add('loading');
+
+        try {
+          const res = await api.post('/license/activate', { activation_key: key });
+          if (res && res.success) {
+            showSuccess('Licence activée avec succès ! Toutes les fonctionnalités sont débloquées.');
+            renderStatus(res.data);
+          } else {
+            showError(res?.error || "Clé invalide.");
+          }
+        } catch (err) {
+          showError(err.message || "Clé d'activation invalide.");
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('loading');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

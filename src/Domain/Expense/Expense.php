@@ -19,13 +19,13 @@ final class Expense
     ) {}
 
     public static function create(
-        string  $tenantId,
-        string  $paidBy,
-        float   $amount,
-        string  $description,
-        ?string $category,
-        array   $splitRatio,
-        string  $date,
+        string $tenantId,
+        string $paidBy,
+        float  $amount,
+        string $description,
+        string $date,
+        ?string $category = null,
+        array   $splitRatio = [],
     ): self {
         $now = new \DateTimeImmutable();
         return new self(
@@ -44,10 +44,10 @@ final class Expense
 
     public static function fromArray(array $data): self
     {
-        $splitRatio = $data['split_ratio'] ?? [];
-        if (is_string($splitRatio)) {
-            $splitRatio = json_decode($splitRatio, true) ?? [];
-        }
+        $splitRaw = $data['split_ratio'] ?? '{}';
+        $splitRatio = is_array($splitRaw)
+            ? $splitRaw
+            : (json_decode((string) $splitRaw, true) ?? []);
 
         return new self(
             id:          $data['id'],
@@ -66,9 +66,8 @@ final class Expense
     public function withUpdated(
         float   $amount,
         string  $description,
-        ?string $category,
-        array   $splitRatio,
         string  $date,
+        ?string $category,
     ): self {
         return new self(
             id:          $this->id,
@@ -77,17 +76,17 @@ final class Expense
             amount:      $amount,
             description: $description,
             category:    $category,
-            splitRatio:  $splitRatio,
+            splitRatio:  $this->splitRatio,
             date:        new \DateTimeImmutable($date),
             createdAt:   $this->createdAt,
             updatedAt:   new \DateTimeImmutable(),
         );
     }
 
-    public function getId(): string       { return $this->id; }
-    public function getTenantId(): string { return $this->tenantId; }
-    public function getPaidBy(): string   { return $this->paidBy; }
-    public function getAmount(): float    { return $this->amount; }
+    public function getId(): string        { return $this->id; }
+    public function getTenantId(): string  { return $this->tenantId; }
+    public function getPaidBy(): string    { return $this->paidBy; }
+    public function getAmount(): float     { return $this->amount; }
     public function getDescription(): string { return $this->description; }
     public function getCategory(): ?string { return $this->category; }
     public function getSplitRatio(): array { return $this->splitRatio; }

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Créer ma famille</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      background: var(--color-bg);
+      overflow: hidden;
+    }
+
+    /* ── Illustration Panel (Left) ── */
+    .login-panel-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-12);
+      background: linear-gradient(160deg, #3D5F52 0%, #2A4539 100%);
+      background-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E"),
+        linear-gradient(160deg, #3D5F52 0%, #2A4539 100%);
+      background-size: 256px 256px, cover;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-panel-left::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .login-panel-left::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .login-illustration {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-8);
+      z-index: 1;
+      text-align: center;
+    }
+
+    .login-logo-icon {
+      width: 72px; height: 72px;
+      border-radius: var(--radius-xl);
+      background: rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .login-logo-icon svg { width: 36px; height: 36px; color: rgba(255,255,255,0.9); }
+
+    .login-app-name {
+      font-family: var(--font-display);
+      font-size: 3.5rem;
+      font-weight: var(--font-light);
+      color: #FFFFFF;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .login-tagline {
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: rgba(255,255,255,0.6);
+      line-height: 1.7;
+      max-width: 340px;
+    }
+
+    .login-features { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-4); }
+    .login-feature { display: flex; align-items: center; gap: var(--space-3); color: rgba(255,255,255,0.7); font-size: var(--text-sm); }
+    .login-feature-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(196,160,80,0.8); flex-shrink: 0; }
+
+    /* ── Form Panel (Right) ── */
+    .login-panel-right {
+      width: 520px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-8);
+      background: var(--color-bg);
+      overflow-y: auto;
+    }
+
+    .login-form-wrapper { width: 100%; max-width: 420px; }
+
+    .login-form-title {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: var(--font-medium);
+      color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .login-form-sub {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-8);
+      line-height: 1.6;
+    }
+
+    .login-form { display: flex; flex-direction: column; gap: var(--space-5); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+
+    .login-submit-btn {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      font-size: var(--text-base);
+      border-radius: var(--radius-lg);
+      margin-top: var(--space-2);
+    }
+
+    .login-footer-note {
+      margin-top: var(--space-6);
+      text-align: center;
+      font-size: var(--text-xs);
+      color: var(--color-text-light);
+      line-height: 1.7;
+    }
+
+    .login-footer-note a { color: var(--color-primary); text-decoration: none; }
+    .login-footer-note a:hover { text-decoration: underline; }
+
+    .login-error-banner {
+      display: none;
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-error-bg);
+      border: 1px solid var(--color-error);
+      border-radius: var(--radius-md);
+      color: var(--color-error);
+      font-size: var(--text-sm);
+    }
+
+    .login-error-banner.visible { display: block; }
+
+    .slug-preview {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+
+    @media (max-width: 900px) {
+      body { flex-direction: column; overflow: auto; }
+      .login-panel-left { flex: none; min-height: 200px; padding: var(--space-8); }
+      .login-app-name { font-size: var(--text-3xl); }
+      .login-features { display: none; }
+      .login-panel-right { width: 100%; padding: var(--space-6); }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Left illustration panel -->
+  <aside class="login-panel-left" aria-hidden="true">
+    <div class="login-illustration">
+      <div class="login-logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.3" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+        </svg>
+      </div>
+      <h1 class="login-app-name">ZenCoParent</h1>
+      <p class="login-tagline">Créez votre espace familial en quelques secondes. Invitez ensuite votre co-parent et vos enfants.</p>
+      <div class="login-features">
+        <div class="login-feature"><span class="login-feature-dot"></span><span>Calendrier partagé pour les enfants</span></div>
+        <div class="login-feature"><span class="login-feature-dot"></span><span>Messagerie privée et familiale</span></div>
+        <div class="login-feature"><span class="login-feature-dot"></span><span>Gestion des dépenses partagées</span></div>
+        <div class="login-feature"><span class="login-feature-dot"></span><span>Suivi médical des enfants</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="login-panel-right">
+    <div class="login-form-wrapper">
+      <h2 class="login-form-title">Créer ma famille</h2>
+      <p class="login-form-sub">Votre espace co-parental privé, prêt en 30 secondes.</p>
+
+      <div class="login-error-banner" id="reg-error" role="alert"></div>
+
+      <form class="login-form" id="register-form" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="first_name">Prénom</label>
+            <input class="form-input" type="text" id="first_name" name="first_name" placeholder="Alice" autocomplete="given-name" required />
+            <span class="form-error hidden" id="first-name-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label required" for="last_name">Nom</label>
+            <input class="form-input" type="text" id="last_name" name="last_name" placeholder="Martin" autocomplete="family-name" required />
+            <span class="form-error hidden" id="last-name-error"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required" for="email">Adresse e-mail</label>
+          <input class="form-input" type="email" id="email" name="email" placeholder="alice@exemple.fr" autocomplete="email" required />
+          <span class="form-error hidden" id="email-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required" for="password">Mot de passe</label>
+          <input class="form-input" type="password" id="password" name="password" placeholder="Au moins 8 caractères" autocomplete="new-password" required />
+          <span class="form-error hidden" id="password-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required" for="family_name">Nom de la famille</label>
+          <input class="form-input" type="text" id="family_name" name="family_name" placeholder="Famille Martin" autocomplete="off" required />
+          <div class="slug-preview" id="slug-preview"></div>
+          <span class="form-error hidden" id="family-name-error"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary login-submit-btn" id="register-btn">
+          Créer ma famille
+        </button>
+      </form>
+
+      <p class="login-footer-note">
+        Déjà un compte ? <a href="/frontend/index.html">Se connecter</a><br />
+        <br />ZenCoParent &mdash; données privées et sécurisées.
+      </p>
+    </div>
+  </main>
+
+  <script src="/frontend/js/api.js"></script>
+  <script>
+    (function () {
+      // Redirect if already logged in
+      try {
+        if (sessionStorage.getItem('zenco_user')) {
+          window.location.href = '/frontend/dashboard.html';
+          return;
+        }
+      } catch {}
+
+      const form        = document.getElementById('register-form');
+      const btn         = document.getElementById('register-btn');
+      const errorBanner = document.getElementById('reg-error');
+      const slugPreview = document.getElementById('slug-preview');
+
+      // Build slug preview
+      document.getElementById('family_name').addEventListener('input', function () {
+        const raw  = this.value.trim();
+        if (!raw) { slugPreview.textContent = ''; return; }
+        const slug = raw.toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9\-]/g, '')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        slugPreview.textContent = slug ? 'Identifiant : ' + slug : '';
+      });
+
+      function clearErrors() {
+        document.querySelectorAll('.form-error').forEach(el => { el.textContent = ''; el.classList.add('hidden'); });
+        document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+        errorBanner.textContent = '';
+        errorBanner.classList.remove('visible');
+      }
+
+      function showFieldError(fieldId, errorId, message) {
+        const field = document.getElementById(fieldId);
+        const errorEl = document.getElementById(errorId);
+        if (field) field.classList.add('error');
+        if (errorEl) { errorEl.textContent = message; errorEl.classList.remove('hidden'); }
+      }
+
+      function showBannerError(message) {
+        errorBanner.textContent = message;
+        errorBanner.classList.add('visible');
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        clearErrors();
+
+        const firstName  = document.getElementById('first_name').value.trim();
+        const lastName   = document.getElementById('last_name').value.trim();
+        const email      = document.getElementById('email').value.trim();
+        const password   = document.getElementById('password').value;
+        const familyName = document.getElementById('family_name').value.trim();
+
+        let hasError = false;
+
+        if (!firstName) { showFieldError('first_name', 'first-name-error', 'Le prénom est requis.'); hasError = true; }
+        if (!lastName)  { showFieldError('last_name',  'last-name-error',  'Le nom est requis.');    hasError = true; }
+        if (!email) {
+          showFieldError('email', 'email-error', "L'e-mail est requis."); hasError = true;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showFieldError('email', 'email-error', "Format d'e-mail invalide."); hasError = true;
+        }
+        if (!password) {
+          showFieldError('password', 'password-error', 'Le mot de passe est requis.'); hasError = true;
+        } else if (password.length < 8) {
+          showFieldError('password', 'password-error', 'Minimum 8 caractères.'); hasError = true;
+        }
+        if (!familyName) { showFieldError('family_name', 'family-name-error', 'Le nom de la famille est requis.'); hasError = true; }
+
+        if (hasError) return;
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+          const result = await api.post('/auth/register', {
+            first_name:  firstName,
+            last_name:   lastName,
+            email,
+            password,
+            family_name: familyName,
+          });
+
+          if (result && result.success && result.data && result.data.user) {
+            sessionStorage.setItem('zenco_user', JSON.stringify(result.data.user));
+            window.location.href = '/frontend/dashboard.html';
+          } else {
+            showBannerError('Inscription échouée. Veuillez réessayer.');
+          }
+        } catch (err) {
+          if (err.status === 409) {
+            showBannerError('Cet e-mail est déjà utilisé.');
+          } else {
+            showBannerError(err.message || 'Une erreur est survenue. Réessayez.');
+          }
+        } finally {
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

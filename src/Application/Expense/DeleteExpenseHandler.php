@@ -12,12 +12,14 @@ final class DeleteExpenseHandler
         private ExpenseRepositoryInterface $expenseRepo,
     ) {}
 
-    public function handle(string $expenseId, string $tenantId): void
+    public function handle(string $id, string $tenantId): void
     {
-        if (!$this->expenseRepo->existsForTenant($expenseId, $tenantId)) {
-            throw NotFoundException::forEntity('Expense', $expenseId);
+        $expense = $this->expenseRepo->findById($id);
+
+        if ($expense === null || $expense->getTenantId() !== $tenantId) {
+            throw new NotFoundException('Dépense introuvable.');
         }
 
-        $this->expenseRepo->delete($expenseId);
+        $this->expenseRepo->delete($id);
     }
 }

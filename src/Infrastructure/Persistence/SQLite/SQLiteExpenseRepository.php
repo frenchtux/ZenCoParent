@@ -17,46 +17,40 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
         return $row !== false ? Expense::fromArray($row) : null;
     }
 
-    public function findByTenantId(
-        string  $tenantId,
-        ?string $paidBy   = null,
-        ?string $category = null,
-        ?string $from     = null,
-        ?string $to       = null,
-    ): array {
+    public function findByTenantId(string $tenantId, ?string $from = null, ?string $to = null): array
+    {
         $params = ['tenant_id' => $tenantId];
         $sql    = 'SELECT * FROM expenses WHERE tenant_id = :tenant_id';
 
-        if ($paidBy !== null) {
-            $sql .= ' AND paid_by = :paid_by';
-            $params['paid_by'] = $paidBy;
-        }
-        if ($category !== null) {
-            $sql .= ' AND category = :category';
-            $params['category'] = $category;
-        }
         if ($from !== null) {
             $sql .= ' AND date >= :from';
             $params['from'] = $from;
         }
+
         if ($to !== null) {
             $sql .= ' AND date <= :to';
             $params['to'] = $to;
         }
 
-        $sql .= ' ORDER BY date DESC';
+        $sql .= ' ORDER BY date DESC, created_at DESC';
+
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+        $rows = $stmt->fetchAll();
 
-        return array_map(static fn(array $row): Expense => Expense::fromArray($row), $stmt->fetchAll());
+        return array_map(static fn(array $row): Expense => Expense::fromArray($row), $rows);
     }
 
     public function save(Expense $expense): void
     {
-        $now  = date('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO expenses (id, tenant_id, paid_by, amount, description, category, split_ratio, date, created_at, updated_at)
-             VALUES (:id, :tenant_id, :paid_by, :amount, :description, :category, :split_ratio, :date, :created_at, :updated_at)'
+            'INSERT INTO expenses (
+                id, tenant_id, paid_by, amount, description, category,
+                split_ratio, date, created_at, updated_at
+            ) VALUES (
+                :id, :tenant_id, :paid_by, :amount, :description, :category,
+                :split_ratio, :date, datetime(\'now\'), datetime(\'now\')
+            )'
         );
         $stmt->execute([
             'id'          => $expense->getId(),
@@ -67,8 +61,6 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
             'category'    => $expense->getCategory(),
             'split_ratio' => json_encode($expense->getSplitRatio()),
             'date'        => $expense->getDate()->format('Y-m-d'),
-            'created_at'  => $now,
-            'updated_at'  => $now,
         ]);
     }
 
@@ -79,33 +71,22 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
                 amount      = :amount,
                 description = :description,
                 category    = :category,
-                split_ratio = :split_ratio,
                 date        = :date,
-                updated_at  = :updated_at
-             WHERE id = :id'
+                updated_at  = datetime(\'now\')
+            WHERE id = :id'
         );
         $stmt->execute([
             'id'          => $expense->getId(),
             'amount'      => $expense->getAmount(),
             'description' => $expense->getDescription(),
             'category'    => $expense->getCategory(),
-            'split_ratio' => json_encode($expense->getSplitRatio()),
             'date'        => $expense->getDate()->format('Y-m-d'),
-            'updated_at'  => date('Y-m-d H:i:s'),
         ]);
     }
 
     public function delete(string $id): void
     {
-        $this->pdo->prepare('DELETE FROM expenses WHERE id = :id')->execute(['id' => $id]);
-    }
-
-    public function existsForTenant(string $id, string $tenantId): bool
-    {
-        $stmt = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM expenses WHERE id = :id AND tenant_id = :tenant_id'
-        );
-        $stmt->execute(['id' => $id, 'tenant_id' => $tenantId]);
-        return (int) $stmt->fetchColumn() > 0;
+        $stmt = $this->pdo->prepare('DELETE FROM expenses WHERE id = :id');
+        $stmt->execute(['id' => $id]);
     }
 }

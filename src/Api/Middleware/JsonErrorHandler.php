@@ -5,6 +5,7 @@ namespace ZenCoParent\Api\Middleware;
 
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
+use Slim\Exception\HttpException;
 use Slim\Handlers\ErrorHandler;
 use Slim\Interfaces\CallableResolverInterface;
 use ZenCoParent\Api\Response\ApiResponse;
@@ -39,6 +40,10 @@ final class JsonErrorHandler extends ErrorHandler
 
             $exception instanceof NotFoundException =>
                 ApiResponse::error($response, $exception->getMessage(), 404),
+
+            // Slim HTTP exceptions (404 Not Found, 405 Method Not Allowed, etc.)
+            $exception instanceof HttpException =>
+                ApiResponse::error($response, $exception->getMessage() ?: 'Not found.', $exception->getCode() ?: 500),
 
             default => ApiResponse::error(
                 $response,

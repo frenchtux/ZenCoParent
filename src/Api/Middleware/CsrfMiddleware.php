@@ -16,6 +16,13 @@ final class CsrfMiddleware implements MiddlewareInterface
         '/auth/login',
         '/auth/oauth/google',
         '/auth/refresh',
+        '/auth/register',
+    ];
+
+    // Full-path exemptions (exact match for public invitation endpoints)
+    private const EXEMPT_PATTERNS = [
+        '#^/invitations/[^/]+$#',          // GET/POST /invitations/{token}
+        '#^/invitations/[^/]+/accept$#',   // POST /invitations/{token}/accept
     ];
 
     private const STATE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
@@ -62,6 +69,11 @@ final class CsrfMiddleware implements MiddlewareInterface
     {
         foreach (self::EXEMPT_PREFIXES as $prefix) {
             if (str_starts_with($path, $prefix)) {
+                return true;
+            }
+        }
+        foreach (self::EXEMPT_PATTERNS as $pattern) {
+            if (preg_match($pattern, $path)) {
                 return true;
             }
         }

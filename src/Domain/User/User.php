@@ -118,6 +118,46 @@ final class User
         );
     }
 
+    public function withNewPassword(string $passwordHash): self
+    {
+        return new self(
+            id:              $this->id,
+            tenantId:        $this->tenantId,
+            email:           $this->email,
+            passwordHash:    $passwordHash,
+            firstName:       $this->firstName,
+            lastName:        $this->lastName,
+            phone:           $this->phone,
+            address:         $this->address,
+            role:            $this->role,
+            isActive:        $this->isActive,
+            emailVerifiedAt: $this->emailVerifiedAt,
+            lastLoginAt:     $this->lastLoginAt,
+            createdAt:       $this->createdAt,
+            updatedAt:       new \DateTimeImmutable(),
+        );
+    }
+
+    public function withAdminFields(UserRole $role, bool $isActive): self
+    {
+        return new self(
+            id:              $this->id,
+            tenantId:        $this->tenantId,
+            email:           $this->email,
+            passwordHash:    $this->passwordHash,
+            firstName:       $this->firstName,
+            lastName:        $this->lastName,
+            phone:           $this->phone,
+            address:         $this->address,
+            role:            $role,
+            isActive:        $isActive,
+            emailVerifiedAt: $this->emailVerifiedAt,
+            lastLoginAt:     $this->lastLoginAt,
+            createdAt:       $this->createdAt,
+            updatedAt:       new \DateTimeImmutable(),
+        );
+    }
+
     public function withEmailVerified(): self
     {
         return new self(

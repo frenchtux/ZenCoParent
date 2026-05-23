@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Dépenses</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar injected by nav.js -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Dépenses</h1>
+        <p class="page-subtitle">Gérez les dépenses partagées</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary btn-sm" id="btn-new-expense">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Nouvelle dépense
+        </button>
+      </div>
+    </div>
+    <div class="page-body">
+      <!-- Summary bar -->
+      <div class="summary-bar" id="summary-bar">
+        <div class="summary-bar-item">
+          <div class="summary-bar-label">Total</div>
+          <div class="summary-bar-value" id="summary-total">—</div>
+        </div>
+        <div class="summary-bar-divider"></div>
+        <div class="summary-bar-item">
+          <div class="summary-bar-label">Nombre</div>
+          <div class="summary-bar-value" style="font-size:var(--text-lg);" id="summary-count">—</div>
+        </div>
+        <div class="summary-bar-divider"></div>
+        <div class="summary-bar-item">
+          <div class="summary-bar-label">Répartition</div>
+        </div>
+        <div id="summary-split" class="flex items-center gap-4" style="flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar" style="margin-top: var(--space-6);">
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:var(--space-2);margin:0;">
+          <label class="form-label" style="white-space:nowrap;margin:0;" for="filter-category">Catégorie</label>
+          <select class="form-select" id="filter-category" style="width:auto;min-width:160px;">
+            <option value="">Toutes</option>
+            <option value="alimentation">Alimentation</option>
+            <option value="sante">Santé</option>
+            <option value="education">Éducation</option>
+            <option value="loisirs">Loisirs</option>
+            <option value="transport">Transport</option>
+            <option value="logement">Logement</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:var(--space-2);margin:0;">
+          <label class="form-label" style="white-space:nowrap;margin:0;" for="filter-from">Du</label>
+          <input class="form-input" type="date" id="filter-from" style="width:auto;" />
+        </div>
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:var(--space-2);margin:0;">
+          <label class="form-label" style="white-space:nowrap;margin:0;" for="filter-to">Au</label>
+          <input class="form-input" type="date" id="filter-to" style="width:auto;" />
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-filters">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          Effacer
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrapper" style="margin-top: var(--space-4);">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Catégorie</th>
+              <th>Montant</th>
+              <th>Payé par</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="expenses-table-body">
+            <tr>
+              <td colspan="6" style="text-align:center;padding:var(--space-8);">
+                <div class="loading-state" style="display:inline-flex;">
+                  <div class="spinner spinner-sm"></div><span>Chargement...</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Expense Modal -->
+<div class="modal-backdrop" id="expense-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="expense-modal-title">Nouvelle dépense</h2>
+      <button class="modal-close-btn" onclick="closeModal('expense-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="expense-form">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label required" for="expense-description">Description</label>
+          <input class="form-input" type="text" id="expense-description" placeholder="Ex : Fournitures scolaires" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required" for="expense-amount">Montant (€)</label>
+            <input class="form-input" type="number" id="expense-amount" placeholder="0.00" step="0.01" min="0" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label required" for="expense-category">Catégorie</label>
+            <select class="form-select" id="expense-category" required>
+              <option value="alimentation">Alimentation</option>
+              <option value="sante">Santé</option>
+              <option value="education">Éducation</option>
+              <option value="loisirs">Loisirs</option>
+              <option value="transport">Transport</option>
+              <option value="logement">Logement</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="expense-date">Date</label>
+            <input class="form-input" type="date" id="expense-date" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="expense-paid-by">Payé par</label>
+            <select class="form-select" id="expense-paid-by">
+              <!-- populated by JS -->
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="expense-notes">Notes</label>
+          <textarea class="form-textarea" id="expense-notes" placeholder="Informations complémentaires..." rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('expense-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="expense-save-btn">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/inviter.js"></script>
+<script src="/frontend/js/depenses.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  renderNav('depenses.html');
+  await depensesInit(user);
+})();
+</script>
+</body>
+</html>

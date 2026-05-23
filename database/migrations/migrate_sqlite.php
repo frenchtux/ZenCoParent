@@ -65,7 +65,10 @@ function rewriteForSqlite(string $sql): string
     //    and only strip the unsupported parts (none needed).
     //    Nothing to do here — SQLite supports the same syntax.
 
-    // 8. Normalize excess whitespace left by removals
+    // 8. NOW() -> (datetime('now'))
+    $sql = preg_replace('/\bNOW\(\)/i', "(datetime('now'))", $sql);
+
+    // 9. Normalize excess whitespace left by removals
     $sql = preg_replace('/[ \t]{2,}/', ' ', $sql);
 
     return $sql;

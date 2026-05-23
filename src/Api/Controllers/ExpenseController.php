@@ -12,16 +12,18 @@ use ZenCoParent\Application\Expense\DeleteExpenseHandler;
 use ZenCoParent\Application\Expense\ListExpensesHandler;
 use ZenCoParent\Application\Expense\UpdateExpenseCommand;
 use ZenCoParent\Application\Expense\UpdateExpenseHandler;
+use ZenCoParent\Domain\Shared\Exception\NotFoundException;
 
 final class ExpenseController
 {
     public function __construct(
-        private ListExpensesHandler  $listHandler,
-        private CreateExpenseHandler $createHandler,
-        private UpdateExpenseHandler $updateHandler,
-        private DeleteExpenseHandler $deleteHandler,
+        private ListExpensesHandler   $listHandler,
+        private CreateExpenseHandler  $createHandler,
+        private UpdateExpenseHandler  $updateHandler,
+        private DeleteExpenseHandler  $deleteHandler,
     ) {}
 
+    /** GET /expenses */
     public function index(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $tenantId = (string) $request->getAttribute('tenantId');
@@ -29,77 +31,92 @@ final class ExpenseController
 
         $expenses = $this->listHandler->handle(
             tenantId: $tenantId,
-            paidBy:   $params['paid_by']  ?? null,
-            category: $params['category'] ?? null,
-            from:     $params['from']     ?? null,
-            to:       $params['to']       ?? null,
+            from:     $params['from'] ?? null,
+            to:       $params['to']   ?? null,
         );
 
         return ApiResponse::success($response, array_map(fn($e) => $e->toArray(), $expenses));
     }
 
+    /** POST /expenses */
     public function create(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $tenantId = (string) $request->getAttribute('tenantId');
         $userId   = (string) $request->getAttribute('userId');
         $body     = (array) $request->getParsedBody();
 
-        foreach (['amount', 'description', 'date'] as $field) {
-            if (!isset($body[$field]) || $body[$field] === '') {
-                return ApiResponse::error($response, "Field '{$field}' is required", 400);
-            }
+        if (empty($body['description'])) {
+            return ApiResponse::error($response, "Le champ 'description' est requis.", 400);
+        }
+        if (empty($body['amount']) || (float) $body['amount'] <= 0) {
+            return ApiResponse::error($response, "Le montant doit être supérieur à 0.", 400);
+        }
+        if (empty($body['date'])) {
+            return ApiResponse::error($response, "Le champ 'date' est requis.", 400);
         }
 
         $command = new CreateExpenseCommand(
             tenantId:    $tenantId,
-            paidBy:      $userId,
+            paidBy:      isset($body['paid_by']) && $body['paid_by'] !== '' ? (string) $body['paid_by'] : $userId,
             amount:      (float) $body['amount'],
-            description: (string) $body['description'],
-            category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
-            splitRatio:  isset($body['split_ratio']) && is_array($body['split_ratio'])
-                             ? $body['split_ratio']
-                             : [],
+            description: trim((string) $body['description']),
             date:        (string) $body['date'],
+            category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
         );
 
-        $dto = $this->createHandler->handle($command);
-
-        return ApiResponse::success($response, $dto->toArray(), 201);
+        try {
+            $expense = $this->createHandler->handle($command);
+            return ApiResponse::success($response, $expense->toArray(), 201);
+        } catch (\Exception $e) {
+            return ApiResponse::error($response, $e->getMessage(), 422);
+        }
     }
 
+    /** PUT /expenses/{id} */
     public function update(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $tenantId = (string) $request->getAttribute('tenantId');
+        $id       = (string) $args['id'];
         $body     = (array) $request->getParsedBody();
 
-        foreach (['amount', 'description', 'date'] as $field) {
-            if (!isset($body[$field]) || $body[$field] === '') {
-                return ApiResponse::error($response, "Field '{$field}' is required", 400);
-            }
+        if (empty($body['description'])) {
+            return ApiResponse::error($response, "Le champ 'description' est requis.", 400);
+        }
+        if (empty($body['amount']) || (float) $body['amount'] <= 0) {
+            return ApiResponse::error($response, "Le montant doit être supérieur à 0.", 400);
+        }
+        if (empty($body['date'])) {
+            return ApiResponse::error($response, "Le champ 'date' est requis.", 400);
         }
 
         $command = new UpdateExpenseCommand(
-            id:          (string) $args['id'],
+            id:          $id,
             tenantId:    $tenantId,
             amount:      (float) $body['amount'],
-            description: (string) $body['description'],
-            category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
-            splitRatio:  isset($body['split_ratio']) && is_array($body['split_ratio'])
-                             ? $body['split_ratio']
-                             : [],
+            description: trim((string) $body['description']),
             date:        (string) $body['date'],
+            category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
         );
 
-        $dto = $this->updateHandler->handle($command);
-
-        return ApiResponse::success($response, $dto->toArray());
+        try {
+            $expense = $this->updateHandler->handle($command);
+            return ApiResponse::success($response, $expense->toArray());
+        } catch (NotFoundException $e) {
+            return ApiResponse::error($response, $e->getMessage(), 404);
+        }
     }
 
+    /** DELETE /expenses/{id} */
     public function destroy(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $tenantId = (string) $request->getAttribute('tenantId');
-        $this->deleteHandler->handle((string) $args['id'], $tenantId);
+        $id       = (string) $args['id'];
 
-        return ApiResponse::success($response, null, 204);
+        try {
+            $this->deleteHandler->handle($id, $tenantId);
+            return ApiResponse::success($response, null, 204);
+        } catch (NotFoundException $e) {
+            return ApiResponse::error($response, $e->getMessage(), 404);
+        }
     }
 }
