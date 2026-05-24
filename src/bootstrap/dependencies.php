@@ -3,9 +3,14 @@ declare(strict_types=1);
 
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
+use ZenCoParent\Application\Admin\AdminService;
 use ZenCoParent\Application\License\LicenseService;
+use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Domain\Auth\OAuthAccountRepositoryInterface;
 use ZenCoParent\Domain\License\LicenseRepositoryInterface;
+use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
+use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
+use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
@@ -247,6 +252,70 @@ return function (ContainerBuilder $containerBuilder) {
         \ZenCoParent\Api\Controllers\LicenseController::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Api\Controllers\LicenseController(
                 $c->get(LicenseService::class)
+            );
+        },
+
+        // ── Plan / Subscription / Payment repositories (SaaS only) ─────────────
+        PlanRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPlanRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        SubscriptionRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLSubscriptionRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        PaymentRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPaymentRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        // ── Application services ─────────────────────────────────────────────
+        SubscriptionService::class => function (ContainerInterface $c) {
+            return new SubscriptionService(
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+            );
+        },
+
+        AdminService::class => function (ContainerInterface $c) {
+            return new AdminService(
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        \ZenCoParent\Infrastructure\Payment\StripeService::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Payment\StripeService(
+                secretKey:              $_ENV['STRIPE_SECRET_KEY'] ?? '',
+                webhookSecret:          $_ENV['STRIPE_WEBHOOK_SECRET'] ?? '',
+                installationKeyPriceId: $_ENV['STRIPE_INSTALLATION_KEY_PRICE_ID'] ?? '',
+                appUrl:                 rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/'),
+                paymentRepo:            $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        // ── Payment + Admin controllers ──────────────────────────────────────
+        \ZenCoParent\Api\Controllers\PaymentController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\PaymentController(
+                $c->get(\ZenCoParent\Infrastructure\Payment\StripeService::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(SubscriptionService::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\AdminController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\AdminController(
+                $c->get(AdminService::class)
             );
         },
 

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Administration</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Administration</h1>
+        <p class="page-subtitle">Vue globale de la plateforme SaaS</p>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- KPI row -->
+      <div class="grid-4" id="kpi-cards">
+        <div class="stat-card">
+          <div class="stat-card-icon primary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-value" id="kpi-total">—</div>
+            <div class="stat-card-label">Familles totales</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon success">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-value" id="kpi-active">—</div>
+            <div class="stat-card-label">Abonnements actifs</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon accent">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-value" id="kpi-trial">—</div>
+            <div class="stat-card-label">En période d'essai</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon info">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-value" id="kpi-mrr">—</div>
+            <div class="stat-card-label">MRR (€)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="margin-top: var(--space-8);">
+        <div class="tab-bar" id="admin-tabs">
+          <button class="tab-btn active" data-tab="families">Familles</button>
+          <button class="tab-btn" data-tab="plans">Plans</button>
+          <button class="tab-btn" data-tab="payments">Paiements</button>
+        </div>
+
+        <!-- Tab: Familles -->
+        <div id="tab-families" class="tab-panel">
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header">
+              <h2 class="card-title">Familles</h2>
+              <input type="text" class="form-input" id="search-families" placeholder="Rechercher..." style="width:220px;" />
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="families-loading" class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+              <table class="table" id="families-table" style="display:none;">
+                <thead>
+                  <tr>
+                    <th>Famille</th>
+                    <th>Plan</th>
+                    <th>Statut</th>
+                    <th>Créée le</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="families-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Plans -->
+        <div id="tab-plans" class="tab-panel" style="display:none;">
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header">
+              <h2 class="card-title">Plans tarifaires</h2>
+            </div>
+            <div class="card-body" id="plans-body">
+              <div class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Paiements -->
+        <div id="tab-payments" class="tab-panel" style="display:none;">
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header">
+              <h2 class="card-title">Historique des paiements</h2>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="payments-loading" class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+              <table class="table" id="payments-table" style="display:none;">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Famille</th>
+                    <th>Type</th>
+                    <th>Montant</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody id="payments-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Plan edit modal -->
+<div class="modal-overlay" id="plan-modal" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="plan-modal-title">Modifier le plan</h3>
+      <button class="btn btn-ghost btn-icon" id="plan-modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="plan-id" />
+      <div class="form-group">
+        <label class="form-label">Nom affiché</label>
+        <input type="text" class="form-input" id="plan-display-name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="plan-description" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Prix mensuel (cts €)</label>
+          <input type="number" class="form-input" id="plan-price-monthly" min="0" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prix annuel (cts €)</label>
+          <input type="number" class="form-input" id="plan-price-yearly" min="0" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Stripe Price ID (mensuel)</label>
+          <input type="text" class="form-input" id="plan-stripe-monthly" placeholder="price_..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stripe Price ID (annuel)</label>
+          <input type="text" class="form-input" id="plan-stripe-yearly" placeholder="price_..." />
+        </div>
+      </div>
+      <fieldset class="form-group">
+        <legend class="form-label">Modules inclus</legend>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-2);">
+          <label class="checkbox-label"><input type="checkbox" id="mod-expenses" /> Dépenses</label>
+          <label class="checkbox-label"><input type="checkbox" id="mod-photos" /> Photos</label>
+          <label class="checkbox-label"><input type="checkbox" id="mod-messages" /> Messagerie</label>
+          <label class="checkbox-label"><input type="checkbox" id="mod-medical" /> Dossiers médicaux</label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="plan-modal-cancel">Annuler</button>
+      <button class="btn btn-primary" id="plan-modal-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/admin.js"></script>
+</body>
+</html>
