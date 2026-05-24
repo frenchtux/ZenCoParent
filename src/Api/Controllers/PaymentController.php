@@ -149,9 +149,17 @@ final class PaymentController
             }
 
             // Fetch Stripe subscription details to get price and period
-            $stripeSub = \Stripe\Subscription::retrieve($stripeSubId);
-            $item      = $stripeSub->items->data[0] ?? null;
-            $priceId   = $item?->price->id;
+            try {
+                $stripeSub = \Stripe\Subscription::retrieve($stripeSubId);
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                // Stripe API unreachable or sub not found — abort silently so Stripe
+                // does not retry indefinitely; manual reconciliation will be needed.
+                error_log('[ZenCoParent] Stripe retrieve failed in webhook: ' . $e->getMessage());
+                return;
+            }
+
+            $item    = $stripeSub->items->data[0] ?? null;
+            $priceId = $item?->price->id;
 
             // Resolve plan from Stripe price ID
             $allPlans = $this->planRepo->findAll();

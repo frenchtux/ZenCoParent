@@ -108,7 +108,7 @@ final class PostgreSQLSubscriptionRepository extends AbstractRepository implemen
             'stripe_subscription_id'=> $sub->getStripeSubscriptionId(),
             'status'                => $sub->getStatus(),
             'billing_interval'      => $sub->getBillingInterval(),
-            'current_period_start'  => $fmt($sub->getCurrentPeriodEnd()),
+            'current_period_start'  => $fmt($sub->getCurrentPeriodStart()),
             'current_period_end'    => $fmt($sub->getCurrentPeriodEnd()),
             'trial_ends_at'         => $fmt($sub->getTrialEndsAt()),
             'cancelled_at'          => $fmt($sub->getCancelledAt()),

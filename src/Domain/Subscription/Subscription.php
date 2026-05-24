@@ -87,7 +87,8 @@ final class Subscription
     public function getStripeSubscriptionId(): ?string       { return $this->stripeSubscriptionId; }
     public function getStatus(): string                      { return $this->status; }
     public function getBillingInterval(): ?string            { return $this->billingInterval; }
-    public function getCurrentPeriodEnd(): ?\DateTimeImmutable { return $this->currentPeriodEnd; }
+    public function getCurrentPeriodStart(): ?\DateTimeImmutable { return $this->currentPeriodStart; }
+    public function getCurrentPeriodEnd(): ?\DateTimeImmutable  { return $this->currentPeriodEnd; }
     public function getTrialEndsAt(): ?\DateTimeImmutable    { return $this->trialEndsAt; }
     public function getCancelledAt(): ?\DateTimeImmutable    { return $this->cancelledAt; }
     public function getCreatedAt(): \DateTimeImmutable       { return $this->createdAt; }

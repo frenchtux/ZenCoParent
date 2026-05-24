@@ -121,7 +121,7 @@ return function (ContainerBuilder $containerBuilder) {
             $pdo = $c->get(\PDO::class);
             return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
                 ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo);
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLInvitationRepository($pdo);
         },
 
         ExpenseRepositoryInterface::class => function (ContainerInterface $c) {
