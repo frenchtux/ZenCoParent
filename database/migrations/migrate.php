@@ -50,20 +50,31 @@ if ($rollback) {
 }
 
 // ---------------------------------------------------------------------------
-// Load .env
+// Load .env (or fall back to process environment, e.g. when running in Docker)
 // ---------------------------------------------------------------------------
 
 $envPath = __DIR__ . '/../../';
+$envFile = getenv('ZENCO_ENV_FILE') ?: '.env';
 
-if (!file_exists($envPath . '.env')) {
-    abort('.env file not found at ' . realpath($envPath));
+if (file_exists($envPath . $envFile)) {
+    Dotenv::createImmutable($envPath, $envFile)->load();
+} else {
+    // No .env file — populate $_ENV from process environment (Docker env_file / -e flags).
+    foreach (['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'] as $key) {
+        if (($val = getenv($key)) !== false) {
+            $_ENV[$key] = $val;
+        }
+    }
 }
 
-$dotenv = Dotenv::createImmutable($envPath);
-$dotenv->load();
-
 // Required variables
-$dotenv->required(['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'])->notEmpty();
+$missing = array_filter(
+    ['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'],
+    fn(string $k): bool => empty($_ENV[$k])
+);
+if (!empty($missing)) {
+    abort('Missing required environment variables: ' . implode(', ', $missing));
+}
 
 $dsn = sprintf(
     'pgsql:host=%s;port=%s;dbname=%s',

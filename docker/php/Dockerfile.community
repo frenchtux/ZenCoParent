@@ -1,0 +1,44 @@
+FROM php:8.2-fpm-alpine
+
+# ── System dependencies ───────────────────────────────────────────────────────
+RUN apk add --no-cache \
+        libpq-dev \
+        libzip-dev \
+        icu-dev \
+        oniguruma-dev \
+        $PHPIZE_DEPS
+
+# ── PHP extensions ────────────────────────────────────────────────────────────
+RUN docker-php-ext-install \
+        pdo_pgsql \
+        pdo_sqlite \
+        opcache \
+        intl \
+        zip \
+        mbstring \
+        pcntl
+
+RUN pecl install redis && docker-php-ext-enable redis
+
+RUN apk del $PHPIZE_DEPS && rm -rf /tmp/pear /var/cache/apk/*
+
+# ── Composer ──────────────────────────────────────────────────────────────────
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+# ── PHP dependencies (separate layer for cache efficiency) ────────────────────
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+
+# ── Application code ──────────────────────────────────────────────────────────
+COPY . .
+
+# ── Ownership + entrypoint ────────────────────────────────────────────────────
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod +x /var/www/html/docker/php/entrypoint-community.sh
+
+USER www-data
+
+ENTRYPOINT ["/var/www/html/docker/php/entrypoint-community.sh"]
+CMD ["php-fpm"]
