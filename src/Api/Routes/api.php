@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
+use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\LicenseController;
+use ZenCoParent\Api\Controllers\NotificationController;
 use ZenCoParent\Api\Controllers\PaymentController;
 use ZenCoParent\Api\Middleware\RequireLicenseMiddleware;
 use ZenCoParent\Api\Middleware\RequireModuleMiddleware;
@@ -169,6 +171,13 @@ return function (App $app): void {
             $group->post('/{id}/messages',                    [ThreadController::class, 'sendMessage']);
             $group->patch('/{id}/messages/{msgId}/read',      [ThreadController::class, 'markRead']);
         })->add($moduleMiddleware('messages'));
+
+        // Notifications summary (unread count)
+        $outer->get('/notifications/summary', [NotificationController::class, 'summary']);
+
+        // Account: GDPR export + account deletion
+        $outer->get('/account/export',  [AccountController::class, 'export']);
+        $outer->delete('/account',      [AccountController::class, 'delete']);
 
     })->add($authMiddleware);
 

@@ -13,6 +13,12 @@ interface SubscriptionRepositoryInterface
 
     public function update(string $id, array $fields): void;
 
+    /**
+     * @param  string[] $tenantIds
+     * @return array<string, Subscription> keyed by tenant_id
+     */
+    public function findByTenantIds(array $tenantIds): array;
+
     /** @return array{total: int, active: int, trial: int, past_due: int, mrr_cents: int} */
     public function getMetrics(): array;
 }

@@ -28,4 +28,10 @@ interface MessageRepositoryInterface
      * Count messages without read_at in this thread, excluding messages sent by $excludeSenderId.
      */
     public function countUnread(string $threadId, string $excludeSenderId): int;
+
+    /**
+     * Count all unread messages across all threads in the tenant for a given user
+     * (messages not sent by that user and not yet read).
+     */
+    public function countAllUnreadForUser(string $userId, string $tenantId): int;
 }

@@ -30,17 +30,28 @@ final class AdminService
         ];
     }
 
-    /** Paginated list of families enriched with their subscription and plan */
+    /** Paginated list of families enriched with their subscription and plan — 3 queries total */
     public function listFamilies(int $limit = 50, int $offset = 0): array
     {
         $tenants = $this->tenantRepo->findAll($limit, $offset);
-        $result  = [];
+        if (empty($tenants)) {
+            return [];
+        }
 
+        $tenantIds      = array_map(fn($t) => $t->getId(), $tenants);
+        $subsByTenantId = $this->subscriptionRepo->findByTenantIds($tenantIds);
+
+        $plansById = [];
+        foreach ($this->planRepo->findAll() as $plan) {
+            $plansById[$plan->getId()] = $plan;
+        }
+
+        $result = [];
         foreach ($tenants as $tenant) {
-            $sub  = $this->subscriptionRepo->findByTenantId($tenant->getId());
-            $plan = ($sub?->getPlanId()) ? $this->planRepo->findById($sub->getPlanId()) : null;
+            $sub  = $subsByTenantId[$tenant->getId()] ?? null;
+            $plan = ($sub?->getPlanId()) ? ($plansById[$sub->getPlanId()] ?? null) : null;
 
-            $row              = $tenant->toArray();
+            $row                 = $tenant->toArray();
             $row['subscription'] = $sub?->toArray();
             $row['plan']         = $plan?->toArray();
             $result[]            = $row;

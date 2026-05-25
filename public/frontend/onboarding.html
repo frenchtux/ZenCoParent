@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Bienvenue</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+  <style>
+    .onboarding-shell {
+      min-height: 100vh;
+      background: var(--color-bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+    }
+    .onboarding-card {
+      background: var(--color-bg);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 560px;
+      padding: var(--space-10) var(--space-10);
+    }
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-8);
+    }
+    .step-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--color-border);
+      transition: background .2s;
+    }
+    .step-dot.active { background: var(--color-primary); }
+    .step-dot.done   { background: var(--color-success); }
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--color-border);
+    }
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+    .step-icon {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--color-primary-light, #ede9fe);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: var(--space-5);
+    }
+    .step-icon svg { width: 28px; height: 28px; color: var(--color-primary); }
+    .step-title {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-bold);
+      color: var(--color-text);
+      margin: 0 0 var(--space-3);
+    }
+    .step-desc {
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+      margin-bottom: var(--space-7);
+    }
+    .onboarding-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: var(--space-6);
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+    }
+    .feature-list li::before {
+      content: '';
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #d1fae5;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2310b981'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+      background-size: 12px;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+  </style>
+</head>
+<body>
+<div class="onboarding-shell">
+  <div class="onboarding-card">
+
+    <!-- Step indicator -->
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot-1"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot-2"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot-3"></div>
+    </div>
+
+    <!-- Step 1 : Bienvenue -->
+    <div class="step-panel active" id="step-1">
+      <div class="step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+        </svg>
+      </div>
+      <h1 class="step-title">Bienvenue sur ZenCoParent !</h1>
+      <p class="step-desc">
+        Votre espace famille est prêt. ZenCoParent vous aide à organiser
+        la co-parentalité sereinement, au quotidien.
+      </p>
+      <ul class="feature-list">
+        <li>Calendrier partagé entre les deux parents</li>
+        <li>Messagerie privée et sécurisée</li>
+        <li>Suivi des dépenses communes</li>
+        <li>Dossiers médicaux et galerie photos des enfants</li>
+      </ul>
+      <div class="onboarding-actions">
+        <button class="btn btn-ghost btn-sm" onclick="finish()">Passer</button>
+        <button class="btn btn-primary" onclick="goTo(2)">
+          Commencer
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px;margin-left:6px">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2 : Inviter co-parent -->
+    <div class="step-panel" id="step-2">
+      <div class="step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+        </svg>
+      </div>
+      <h1 class="step-title">Inviter votre co-parent</h1>
+      <p class="step-desc">
+        Envoyez une invitation à votre co-parent pour qu'il rejoigne votre espace famille.
+        Vous pouvez aussi ignorer cette étape et l'inviter plus tard depuis le tableau de bord.
+      </p>
+      <div id="invite-form">
+        <div class="form-group">
+          <label class="form-label" for="invite-email">Adresse e-mail</label>
+          <input class="form-input" type="email" id="invite-email" placeholder="coparent@example.com" />
+        </div>
+        <div id="invite-feedback" style="display:none;margin-top:var(--space-3)"></div>
+      </div>
+      <div id="invite-success" style="display:none" class="alert alert-success">
+        Invitation envoyée avec succès !
+      </div>
+      <div class="onboarding-actions">
+        <button class="btn btn-ghost btn-sm" onclick="goTo(3)">Ignorer</button>
+        <button class="btn btn-primary" id="btn-invite" onclick="sendInvite()">
+          Envoyer l'invitation
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3 : Premier enfant -->
+    <div class="step-panel" id="step-3">
+      <div class="step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        </svg>
+      </div>
+      <h1 class="step-title">Ajouter votre premier enfant</h1>
+      <p class="step-desc">
+        Ajoutez les informations de votre enfant pour commencer à organiser
+        son calendrier, ses dépenses et ses documents médicaux.
+      </p>
+      <div class="grid-2" style="gap:var(--space-4)">
+        <div class="form-group">
+          <label class="form-label" for="child-first">Prénom</label>
+          <input class="form-input" type="text" id="child-first" placeholder="Prénom" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="child-last">Nom</label>
+          <input class="form-input" type="text" id="child-last" placeholder="Nom" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:var(--space-4)">
+        <label class="form-label" for="child-dob">Date de naissance</label>
+        <input class="form-input" type="date" id="child-dob" />
+      </div>
+      <div id="child-feedback" style="display:none;margin-top:var(--space-3)"></div>
+      <div class="onboarding-actions">
+        <button class="btn btn-ghost btn-sm" onclick="finish()">Ignorer</button>
+        <button class="btn btn-primary" id="btn-child" onclick="saveChild()">
+          Ajouter l'enfant
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/onboarding.js"></script>
+</body>
+</html>

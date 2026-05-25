@@ -71,6 +71,24 @@ final class PostgreSQLSubscriptionRepository extends AbstractRepository implemen
                   ->execute($params);
     }
 
+    public function findByTenantIds(array $tenantIds): array
+    {
+        if (empty($tenantIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM subscriptions WHERE tenant_id IN ({$placeholders})"
+        );
+        $stmt->execute(array_values($tenantIds));
+        $result = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $sub = Subscription::fromArray($row);
+            $result[$sub->getTenantId()] = $sub;
+        }
+        return $result;
+    }
+
     public function getMetrics(): array
     {
         $row = $this->pdo->query(

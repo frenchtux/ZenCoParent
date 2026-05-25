@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ZenCoParent\Application\Auth;
 
+use Psr\Log\LoggerInterface;
 use ZenCoParent\Application\User\UserDTO;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
+use ZenCoParent\Domain\Notification\MailerInterface;
 use ZenCoParent\Domain\Shared\Exception\ValidationException;
 use ZenCoParent\Domain\Tenant\Tenant;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
@@ -21,6 +23,8 @@ final class RegisterHandler
         private UserRepositoryInterface         $userRepo,
         private RefreshTokenRepositoryInterface $refreshRepo,
         private JWTService                      $jwt,
+        private MailerInterface                 $mailer  = new \ZenCoParent\Infrastructure\Notification\NullMailer(),
+        private LoggerInterface                 $logger  = new \Psr\Log\NullLogger(),
     ) {}
 
     public function handle(RegisterCommand $command): LoginResult
@@ -76,6 +80,13 @@ final class RegisterHandler
             $tokenHash,
             new \DateTimeImmutable("+{$expiry} seconds"),
         );
+
+        // Send welcome email (best-effort — never block registration)
+        try {
+            $this->mailer->sendWelcome($user->getEmail(), $user->getFirstName(), $tenant->getName());
+        } catch (\Throwable $e) {
+            $this->logger->warning('Could not send welcome email', ['error' => $e->getMessage()]);
+        }
 
         return new LoginResult(
             accessToken:  $accessToken,

@@ -6,21 +6,18 @@ namespace ZenCoParent\Api\Controllers;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use ZenCoParent\Api\Response\ApiResponse;
-use ZenCoParent\Domain\Payment\Payment;
-use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
+use ZenCoParent\Application\Payment\StripeWebhookHandler;
 use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
 use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Infrastructure\Payment\StripeService;
-use ZenCoParent\Application\Subscription\SubscriptionService;
 
 final class PaymentController
 {
     public function __construct(
         private readonly StripeService                   $stripeService,
         private readonly PlanRepositoryInterface         $planRepo,
-        private readonly SubscriptionService             $subscriptionService,
         private readonly SubscriptionRepositoryInterface $subscriptionRepo,
-        private readonly PaymentRepositoryInterface      $paymentRepo,
+        private readonly StripeWebhookHandler            $webhookHandler,
     ) {}
 
     /** POST /payments/checkout/installation-key — unauthenticated */
@@ -109,150 +106,15 @@ final class PaymentController
         }
 
         match ($event->type) {
-            'checkout.session.completed'         => $this->handleCheckoutCompleted($event->data->object),
+            'checkout.session.completed'    => $this->webhookHandler->handleCheckoutCompleted($event->data->object),
             'customer.subscription.updated',
-            'customer.subscription.deleted'      => $this->handleSubscriptionEvent($event->data->object),
-            'invoice.payment_succeeded'          => $this->handleInvoiceSucceeded($event->data->object),
-            'invoice.payment_failed'             => $this->handleInvoiceFailed($event->data->object),
-            default                              => null,
+            'customer.subscription.deleted' => $this->webhookHandler->handleSubscriptionEvent($event->data->object),
+            'invoice.payment_succeeded'     => $this->webhookHandler->handleInvoiceSucceeded($event->data->object),
+            'invoice.payment_failed'        => $this->webhookHandler->handleInvoiceFailed($event->data->object),
+            default                         => null,
         };
 
         $response->getBody()->write(json_encode(['received' => true]));
         return $response->withStatus(200)->withHeader('Content-Type', 'application/json');
-    }
-
-    private function handleCheckoutCompleted(object $session): void
-    {
-        $type = $session->metadata->type ?? '';
-
-        if ($type === Payment::TYPE_INSTALLATION_KEY) {
-            $payment = $this->paymentRepo->findByStripeSessionId($session->id);
-            if ($payment) {
-                $this->paymentRepo->updateStatus(
-                    $payment->getId(),
-                    Payment::STATUS_SUCCEEDED,
-                    $session->payment_intent ?? null,
-                    new \DateTimeImmutable(),
-                );
-            }
-            return;
-        }
-
-        if ($type === Payment::TYPE_SUBSCRIPTION) {
-            $tenantId        = $session->metadata->tenant_id ?? null;
-            $billingInterval = $session->metadata->billing_interval ?? 'monthly';
-            $stripeSubId     = $session->subscription ?? null;
-            $customerId      = $session->customer ?? null;
-
-            if ($tenantId === null || $stripeSubId === null) {
-                return;
-            }
-
-            // Fetch Stripe subscription details to get price and period
-            try {
-                $stripeSub = \Stripe\Subscription::retrieve($stripeSubId);
-            } catch (\Stripe\Exception\ApiErrorException $e) {
-                // Stripe API unreachable or sub not found — abort silently so Stripe
-                // does not retry indefinitely; manual reconciliation will be needed.
-                error_log('[ZenCoParent] Stripe retrieve failed in webhook: ' . $e->getMessage());
-                return;
-            }
-
-            $item    = $stripeSub->items->data[0] ?? null;
-            $priceId = $item?->price->id;
-
-            // Resolve plan from Stripe price ID
-            $allPlans = $this->planRepo->findAll();
-            $plan     = null;
-            foreach ($allPlans as $p) {
-                if ($p->getStripePriceIdMonthly() === $priceId
-                    || $p->getStripePriceIdYearly() === $priceId) {
-                    $plan = $p;
-                    break;
-                }
-            }
-
-            if ($plan === null) {
-                return;
-            }
-
-            $this->subscriptionService->syncFromStripe(
-                stripeSubscriptionId: $stripeSubId,
-                stripeCustomerId:     $customerId,
-                tenantId:             $tenantId,
-                planId:               $plan->getId(),
-                status:               'active',
-                billingInterval:      $billingInterval,
-                periodStart:          new \DateTimeImmutable('@' . $stripeSub->current_period_start),
-                periodEnd:            new \DateTimeImmutable('@' . $stripeSub->current_period_end),
-            );
-        }
-    }
-
-    private function handleSubscriptionEvent(object $stripeSub): void
-    {
-        $sub = $this->subscriptionRepo->findByStripeSubscriptionId($stripeSub->id);
-        if ($sub === null) {
-            return;
-        }
-
-        $stripeStatus = match ($stripeSub->status) {
-            'active'   => 'active',
-            'past_due' => 'past_due',
-            'canceled' => 'cancelled',
-            default    => 'expired',
-        };
-
-        $this->subscriptionRepo->update($sub->getId(), [
-            'status'               => $stripeStatus,
-            'current_period_start' => new \DateTimeImmutable('@' . $stripeSub->current_period_start),
-            'current_period_end'   => new \DateTimeImmutable('@' . $stripeSub->current_period_end),
-            'cancelled_at'         => $stripeSub->canceled_at
-                ? new \DateTimeImmutable('@' . $stripeSub->canceled_at)
-                : null,
-        ]);
-    }
-
-    private function handleInvoiceSucceeded(object $invoice): void
-    {
-        $existing = $this->paymentRepo->findByStripeSessionId($invoice->id);
-        if ($existing !== null) {
-            $this->paymentRepo->updateStatus(
-                $existing->getId(),
-                Payment::STATUS_SUCCEEDED,
-                $invoice->payment_intent ?? null,
-                new \DateTimeImmutable(),
-            );
-            return;
-        }
-
-        // Record new payment for subscription renewal
-        $sub = $invoice->subscription
-            ? $this->subscriptionRepo->findByStripeSubscriptionId($invoice->subscription)
-            : null;
-
-        $payment = Payment::pending(
-            type:            Payment::TYPE_SUBSCRIPTION,
-            amountCents:     (int) $invoice->amount_paid,
-            currency:        $invoice->currency,
-            tenantId:        $sub?->getTenantId(),
-            stripeSessionId: $invoice->id,
-            metadata:        ['stripe_invoice_id' => $invoice->id],
-        );
-        $this->paymentRepo->save($payment);
-        $this->paymentRepo->updateStatus(
-            $payment->getId(),
-            Payment::STATUS_SUCCEEDED,
-            $invoice->payment_intent ?? null,
-            new \DateTimeImmutable(),
-        );
-    }
-
-    private function handleInvoiceFailed(object $invoice): void
-    {
-        $existing = $this->paymentRepo->findByStripeSessionId($invoice->id);
-        if ($existing !== null) {
-            $this->paymentRepo->updateStatus($existing->getId(), Payment::STATUS_FAILED);
-        }
     }
 }

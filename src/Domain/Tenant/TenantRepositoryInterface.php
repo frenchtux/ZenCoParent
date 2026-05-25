@@ -16,4 +16,6 @@ interface TenantRepositoryInterface
     public function save(Tenant $tenant): void;
 
     public function updateModulesOverride(string $id, ?array $modules): void;
+
+    public function setActive(string $id, bool $active): void;
 }

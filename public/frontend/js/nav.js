@@ -167,13 +167,15 @@
       .filter(link => !link.saasOnly || IS_SAAS)
       .map(link => {
         const isActive = link.page === activePage;
-        const badgeHtml = link.badge
+        const staticBadge = link.badge
           ? `<span style="font-size:0.65rem;background:var(--color-border);color:var(--color-text-muted);padding:1px 6px;border-radius:999px;margin-left:auto;">${escapeHtml(link.badge)}</span>`
           : '';
-        return `<a href="/frontend/${link.page}" class="nav-link${isActive ? ' active' : ''}" title="${escapeHtml(link.label)}">
+        const unreadAttr = link.page === 'messagerie.html' ? ' id="nav-msg-link"' : '';
+        return `<a href="/frontend/${link.page}" class="nav-link${isActive ? ' active' : ''}" title="${escapeHtml(link.label)}"${unreadAttr}>
           ${link.icon}
           <span>${escapeHtml(link.label)}</span>
-          ${badgeHtml}
+          ${staticBadge}
+          ${link.page === 'messagerie.html' ? '<span id="nav-msg-badge" style="display:none;background:#ef4444;color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:auto;"></span>' : ''}
         </a>`;
       }).join('');
 
@@ -234,8 +236,44 @@
     }
   }
 
-  global.renderNav     = renderNav;
-  global.escapeHtml    = escapeHtml;
-  global.initials      = initials;
+  // ── Notification badge polling ────────────────────────────────────────────
+
+  let _notifTimer = null;
+
+  async function refreshUnreadBadge() {
+    try {
+      const res  = await api.get('/notifications/summary');
+      const data = res?.data ?? res ?? {};
+      const count = data.unread_messages ?? 0;
+      const badge = document.getElementById('nav-msg-badge');
+      if (!badge) return;
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch (_) {
+      // Silent — network errors don't break the UI
+    }
+  }
+
+  function startNotifPolling() {
+    refreshUnreadBadge();
+    _notifTimer = setInterval(refreshUnreadBadge, 30_000);
+  }
+
+  function stopNotifPolling() {
+    if (_notifTimer) {
+      clearInterval(_notifTimer);
+      _notifTimer = null;
+    }
+  }
+
+  global.renderNav         = renderNav;
+  global.escapeHtml        = escapeHtml;
+  global.initials          = initials;
+  global.startNotifPolling = startNotifPolling;
+  global.stopNotifPolling  = stopNotifPolling;
 
 })(window);

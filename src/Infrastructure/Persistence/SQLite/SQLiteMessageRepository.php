@@ -74,4 +74,18 @@ final class SQLiteMessageRepository extends AbstractRepository implements Messag
         $stmt->execute(['thread_id' => $threadId, 'sender_id' => $excludeSenderId]);
         return (int) $stmt->fetchColumn();
     }
+
+    public function countAllUnreadForUser(string $userId, string $tenantId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*)
+             FROM messages m
+             JOIN thread_participants tp ON tp.thread_id = m.thread_id
+             WHERE tp.user_id    = :participant_id
+               AND m.sender_id  != :sender_id
+               AND m.read_at    IS NULL'
+        );
+        $stmt->execute(['participant_id' => $userId, 'sender_id' => $userId]);
+        return (int) $stmt->fetchColumn();
+    }
 }

@@ -67,4 +67,12 @@ final class PostgreSQLTenantRepository extends AbstractRepository implements Ten
             'mo' => $modules !== null ? json_encode($modules) : null,
         ]);
     }
+
+    public function setActive(string $id, bool $active): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE tenants SET is_active = :active, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute(['id' => $id, 'active' => $active ? 1 : 0]);
+    }
 }
