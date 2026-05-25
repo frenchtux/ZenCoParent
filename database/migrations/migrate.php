@@ -63,13 +63,13 @@ $dotenv = Dotenv::createImmutable($envPath);
 $dotenv->load();
 
 // Required variables
-$dotenv->required(['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'])->notEmpty();
+$dotenv->required(['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'])->notEmpty();
 
 $dsn = sprintf(
     'pgsql:host=%s;port=%s;dbname=%s',
     $_ENV['DB_HOST'],
     $_ENV['DB_PORT'],
-    $_ENV['DB_NAME']
+    $_ENV['DB_DATABASE']
 );
 
 // ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ $dsn = sprintf(
 // ---------------------------------------------------------------------------
 
 try {
-    $pdo = new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASSWORD'], [
+    $pdo = new PDO($dsn, $_ENV['DB_USERNAME'], $_ENV['DB_PASSWORD'], [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
@@ -85,7 +85,7 @@ try {
     abort('Could not connect to PostgreSQL: ' . $e->getMessage());
 }
 
-out('Connected to PostgreSQL (' . $_ENV['DB_HOST'] . ':' . $_ENV['DB_PORT'] . '/' . $_ENV['DB_NAME'] . ')', 'cyan');
+out('Connected to PostgreSQL (' . $_ENV['DB_HOST'] . ':' . $_ENV['DB_PORT'] . '/' . $_ENV['DB_DATABASE'] . ')', 'cyan');
 
 // ---------------------------------------------------------------------------
 // Ensure migrations tracking table exists
