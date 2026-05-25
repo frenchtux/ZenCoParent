@@ -3,11 +3,24 @@ declare(strict_types=1);
 
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use ZenCoParent\Application\Admin\AdminService;
 use ZenCoParent\Application\License\LicenseService;
+use ZenCoParent\Application\Payment\StripeWebhookHandler;
+use ZenCoParent\Application\Subscription\SubscriptionService;
+use ZenCoParent\Application\User\DeleteAccountHandler;
+use ZenCoParent\Application\User\GdprExportHandler;
 use ZenCoParent\Domain\Auth\OAuthAccountRepositoryInterface;
 use ZenCoParent\Domain\License\LicenseRepositoryInterface;
+use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
+use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
+use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
+use ZenCoParent\Domain\Event\EventRepositoryInterface;
+use ZenCoParent\Domain\Expense\ExpenseRepositoryInterface;
+use ZenCoParent\Domain\MedicalRecord\MedicalRecordRepositoryInterface;
+use ZenCoParent\Domain\Notification\MailerInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
 use ZenCoParent\Domain\Expense\ExpenseRepositoryInterface;
 use ZenCoParent\Domain\Invitation\InvitationRepositoryInterface;
@@ -116,7 +129,7 @@ return function (ContainerBuilder $containerBuilder) {
             $pdo = $c->get(\PDO::class);
             return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
                 ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo);
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLInvitationRepository($pdo);
         },
 
         ExpenseRepositoryInterface::class => function (ContainerInterface $c) {
@@ -151,12 +164,21 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(UserRepositoryInterface::class),
                 $c->get(RefreshTokenRepositoryInterface::class),
                 $c->get(JWTService::class),
+                $c->get(MailerInterface::class),
+                $c->get(LoggerInterface::class),
             );
         },
 
         // Invitation handlers
         CreateInvitationHandler::class => function (ContainerInterface $c) {
-            return new CreateInvitationHandler($c->get(InvitationRepositoryInterface::class));
+            return new CreateInvitationHandler(
+                $c->get(InvitationRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(MailerInterface::class),
+                $c->get(LoggerInterface::class),
+                rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/'),
+            );
         },
 
         GetInvitationHandler::class => function (ContainerInterface $c) {
@@ -234,15 +256,167 @@ return function (ContainerBuilder $containerBuilder) {
         },
 
         LicenseService::class => function (ContainerInterface $c) {
+            $masterKey = $_ENV['LICENSE_MASTER_KEY'] ?? '';
+            if ($masterKey === '') {
+                throw new \RuntimeException('LICENSE_MASTER_KEY must be set in the environment — no default is allowed.');
+            }
             return new LicenseService(
                 $c->get(LicenseRepositoryInterface::class),
-                $_ENV['LICENSE_MASTER_KEY'] ?? 'zencoparent-default-master-key-change-in-production',
+                $masterKey,
             );
         },
 
         \ZenCoParent\Api\Controllers\LicenseController::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Api\Controllers\LicenseController(
                 $c->get(LicenseService::class)
+            );
+        },
+
+        // ── Plan / Subscription / Payment repositories (SaaS only) ─────────────
+        PlanRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPlanRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        SubscriptionRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLSubscriptionRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        PaymentRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPaymentRepository(
+                $c->get(\PDO::class)
+            );
+        },
+
+        // ── Application services ─────────────────────────────────────────────
+        SubscriptionService::class => function (ContainerInterface $c) {
+            return new SubscriptionService(
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+            );
+        },
+
+        AdminService::class => function (ContainerInterface $c) {
+            return new AdminService(
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        \ZenCoParent\Infrastructure\Payment\StripeService::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Payment\StripeService(
+                secretKey:              $_ENV['STRIPE_SECRET_KEY'] ?? '',
+                webhookSecret:          $_ENV['STRIPE_WEBHOOK_SECRET'] ?? '',
+                installationKeyPriceId: $_ENV['STRIPE_INSTALLATION_KEY_PRICE_ID'] ?? '',
+                appUrl:                 rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/'),
+                paymentRepo:            $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        // ── Payment + Admin controllers ──────────────────────────────────────
+        \ZenCoParent\Api\Controllers\PaymentController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\PaymentController(
+                $c->get(\ZenCoParent\Infrastructure\Payment\StripeService::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(StripeWebhookHandler::class),
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\AdminController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\AdminController(
+                $c->get(AdminService::class)
+            );
+        },
+
+        // ── Logger ───────────────────────────────────────────────────────────
+        LoggerInterface::class => function () {
+            $logger  = new \Monolog\Logger('zencoparent');
+            $level   = ($_ENV['APP_DEBUG'] ?? 'false') === 'true'
+                ? \Monolog\Level::Debug
+                : \Monolog\Level::Info;
+            $logDir  = dirname(__DIR__, 2) . '/storage/logs';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+            $file = new \Monolog\Handler\StreamHandler($logDir . '/app.log', $level);
+            $file->setFormatter(new \Monolog\Formatter\JsonFormatter());
+            $logger->pushHandler($file);
+            $logger->pushHandler(new \Monolog\Handler\StreamHandler('php://stderr', \Monolog\Level::Warning));
+            return $logger;
+        },
+
+        // ── Mailer ───────────────────────────────────────────────────────────
+        MailerInterface::class => function () {
+            $host = $_ENV['MAIL_HOST'] ?? '';
+            if ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community') {
+                return new \ZenCoParent\Infrastructure\Notification\NullMailer();
+            }
+            return new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
+                host:        $host,
+                port:        (int) ($_ENV['MAIL_PORT']        ?? 587),
+                username:    $_ENV['MAIL_USERNAME']    ?? '',
+                password:    $_ENV['MAIL_PASSWORD']    ?? '',
+                encryption:  $_ENV['MAIL_ENCRYPTION']  ?? 'tls',
+                fromAddress: $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.com',
+                fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
+            );
+        },
+
+        // ── Stripe webhook handler ────────────────────────────────────────────
+        StripeWebhookHandler::class => function (ContainerInterface $c) {
+            return new StripeWebhookHandler(
+                $c->get(PaymentRepositoryInterface::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(PlanRepositoryInterface::class),
+                $c->get(SubscriptionService::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(MailerInterface::class),
+                $c->get(LoggerInterface::class),
+            );
+        },
+
+        // ── GDPR export + account deletion ───────────────────────────────────
+        GdprExportHandler::class => function (ContainerInterface $c) {
+            return new GdprExportHandler(
+                $c->get(UserRepositoryInterface::class),
+                $c->get(ChildRepositoryInterface::class),
+                $c->get(EventRepositoryInterface::class),
+                $c->get(ExpenseRepositoryInterface::class),
+                $c->get(\ZenCoParent\Domain\Photo\PhotoRepositoryInterface::class),
+                $c->get(\ZenCoParent\Domain\Messaging\ThreadRepositoryInterface::class),
+                $c->get(\ZenCoParent\Domain\Messaging\MessageRepositoryInterface::class),
+                $c->get(MedicalRecordRepositoryInterface::class),
+            );
+        },
+
+        DeleteAccountHandler::class => function (ContainerInterface $c) {
+            return new DeleteAccountHandler(
+                $c->get(UserRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(SubscriptionRepositoryInterface::class),
+                $c->get(RefreshTokenRepositoryInterface::class),
+                $c->get(SubscriptionService::class),
+            );
+        },
+
+        // ── Notification + Account controllers ───────────────────────────────
+        \ZenCoParent\Api\Controllers\NotificationController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\NotificationController(
+                $c->get(\ZenCoParent\Domain\Messaging\MessageRepositoryInterface::class),
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\AccountController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\AccountController(
+                $c->get(GdprExportHandler::class),
+                $c->get(DeleteAccountHandler::class),
             );
         },
 

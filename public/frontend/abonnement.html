@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Abonnement</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Abonnement</h1>
+        <p class="page-subtitle">Gérez votre plan et vos paiements</p>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- Current subscription status -->
+      <div class="card" id="current-sub-card">
+        <div class="card-header"><h2 class="card-title">Votre abonnement actuel</h2></div>
+        <div class="card-body" id="current-sub-body">
+          <div class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
+        </div>
+      </div>
+
+      <!-- Billing interval toggle -->
+      <div style="margin-top:var(--space-8);text-align:center;">
+        <div class="btn-group" id="interval-toggle">
+          <button class="btn btn-primary btn-sm active" data-interval="monthly">Mensuel</button>
+          <button class="btn btn-ghost btn-sm" data-interval="yearly">Annuel <span class="badge badge-success" style="margin-left:4px;">−2 mois</span></button>
+        </div>
+      </div>
+
+      <!-- Plans grid -->
+      <div class="grid-3" id="plans-grid" style="margin-top:var(--space-6);">
+        <div class="loading-state" style="grid-column:1/-1;"><div class="spinner"></div><span>Chargement des plans...</span></div>
+      </div>
+
+      <!-- Stripe portal link -->
+      <div class="card" style="margin-top:var(--space-8);" id="portal-card" style="display:none;">
+        <div class="card-header"><h2 class="card-title">Gérer la facturation</h2></div>
+        <div class="card-body">
+          <p class="text-muted" style="margin-bottom:var(--space-4);">
+            Accédez au portail Stripe pour modifier votre moyen de paiement, télécharger vos factures ou annuler votre abonnement.
+          </p>
+          <button class="btn btn-ghost" id="portal-btn">Ouvrir le portail de facturation →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/abonnement.js"></script>
+</body>
+</html>

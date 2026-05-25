@@ -40,4 +40,28 @@ final class SQLiteTenantRepository extends AbstractRepository implements TenantR
             'is_active' => $data['is_active'] ? 1 : 0,
         ]);
     }
+
+    public function findAll(int $limit = 50, int $offset = 0): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM tenants ORDER BY created_at DESC LIMIT :lim OFFSET :off'
+        );
+        $stmt->bindValue('lim', $limit, \PDO::PARAM_INT);
+        $stmt->bindValue('off', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        return array_map(fn($r) => Tenant::fromArray($r), $stmt->fetchAll());
+    }
+
+    public function updateModulesOverride(string $id, ?array $modules): void
+    {
+        // modules_override column may not exist in community SQLite schema — no-op
+    }
+
+    public function setActive(string $id, bool $active): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE tenants SET is_active = :active, updated_at = datetime('now') WHERE id = :id"
+        );
+        $stmt->execute(['id' => $id, 'active' => $active ? 1 : 0]);
+    }
 }

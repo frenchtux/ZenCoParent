@@ -101,6 +101,7 @@
   if (!user) return;
 
   renderNav('dashboard.html');
+  startNotifPolling();
 
   // Greeting & date
   const now = new Date();
@@ -135,7 +136,16 @@
   const children = childrenRes.status === 'fulfilled' && childrenRes.value
     ? (childrenRes.value.data || childrenRes.value || [])
     : [];
-  document.getElementById('stat-children').textContent = Array.isArray(children) ? children.length : 0;
+  const childrenArr = Array.isArray(children) ? children : [];
+  document.getElementById('stat-children').textContent = childrenArr.length;
+
+  // Onboarding redirect — only once per session for parent/admin with empty family
+  if (childrenArr.length === 0
+      && user.role !== 'child'
+      && !sessionStorage.getItem('zenco_onboarding_dismissed')) {
+    window.location.replace('/frontend/onboarding.html');
+    return;
+  }
 
   // Events this month count
   const eventsMonth = eventsMonthRes.status === 'fulfilled' && eventsMonthRes.value

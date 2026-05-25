@@ -1,0 +1,23 @@
+# ── Version control ───────────────────────────────────────────────────────────
+.git
+.gitattributes
+.gitignore
+
+# ── Environment files (never bake secrets into the image) ─────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Docker files (not needed inside the image) ────────────────────────────────
+docker-compose*.yml
+.dockerignore
+
+# ── PHP vendor (installed inside the image by composer) ───────────────────────
+vendor/
+
+# ── Runtime artifacts ─────────────────────────────────────────────────────────
+storage/
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

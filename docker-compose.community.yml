@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ZenCoParent — Community edition
+# Single-tenant · SQLite · no external services required
+#
+# Usage:
+#   docker compose -f docker-compose.community.yml up -d --build
+#   Open http://localhost
+#
+# The database is created automatically on first start.
+# To wipe all data and start fresh:
+#   docker compose -f docker-compose.community.yml down -v
+#
+# ⚠ Change APP_SECRET, JWT_SECRET and CSRF_SECRET before any real use.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── nginx ─────────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - php
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - app_code:/var/www/html:ro
+    networks:
+      - zenco_net
+
+  # ── php-fpm (code + SQLite) ───────────────────────────────────────────────────
+  # Image is built locally from the project root; SQLite migrations run at startup.
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.community
+    restart: unless-stopped
+    volumes:
+      - app_code:/var/www/html
+      - zenco_storage:/var/www/html/storage
+    environment:
+      APP_NAME: ZenCoParent
+      APP_ENV: production
+      APP_MODE: community
+      # ⚠ Change these secrets before handling real user data.
+      APP_SECRET: "change-me-to-a-long-random-secret-min-32-chars!!"
+      APP_URL: "http://localhost"
+      APP_DEBUG: "false"
+      DB_CONNECTION: sqlite
+      DB_FILE: /var/www/html/storage/database.sqlite
+      JWT_SECRET: "change-me-to-another-long-random-jwt-secret-min-32!!"
+      JWT_EXPIRY: "3600"
+      JWT_REFRESH_EXPIRY: "2592000"
+      CSRF_SECRET: "change-me-csrf-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      STORAGE_PATH: /var/www/html/storage
+      STORAGE_URL: "http://localhost/storage"
+      RATE_LIMIT_REQUESTS: "60"
+      RATE_LIMIT_WINDOW: "60"
+    networks:
+      - zenco_net
+
+networks:
+  zenco_net:
+    driver: bridge
+
+volumes:
+  # Populated from the PHP image on first start; nginx reads it read-only.
+  app_code:
+  # Persistent storage: SQLite database + uploaded files.
+  zenco_storage:

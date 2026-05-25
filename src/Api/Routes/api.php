@@ -3,10 +3,16 @@ declare(strict_types=1);
 
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
+use ZenCoParent\Api\Controllers\AccountController;
+use ZenCoParent\Api\Controllers\AdminController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\LicenseController;
+use ZenCoParent\Api\Controllers\NotificationController;
+use ZenCoParent\Api\Controllers\PaymentController;
 use ZenCoParent\Api\Middleware\RequireLicenseMiddleware;
+use ZenCoParent\Api\Middleware\RequireModuleMiddleware;
 use ZenCoParent\Application\License\LicenseService;
+use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Api\Controllers\ChildController;
 use ZenCoParent\Api\Controllers\EventController;
 use ZenCoParent\Api\Controllers\ExpenseController;
@@ -66,6 +72,12 @@ return function (App $app): void {
     $app->get('/license',          [LicenseController::class, 'status']);
     $app->post('/license/activate',[LicenseController::class, 'activate']);
 
+    // ── Payment routes ────────────────────────────────────────────────────────
+    // Webhook is public (Stripe signature verified inside the handler)
+    $app->post('/payments/webhook',                    [PaymentController::class, 'webhook']);
+    // Installation key checkout: public (no account needed to buy a key)
+    $app->post('/payments/checkout/installation-key',  [PaymentController::class, 'checkoutInstallationKey']);
+
     // ── Invitation public routes (no auth) ───────────────────────────────────
     $app->get('/invitations/{token}',         [InvitationController::class, 'show']);
     $app->post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
@@ -75,7 +87,26 @@ return function (App $app): void {
     // Middleware execution order (LIFO): licenseMiddleware → authMiddleware → handler.
     $authMiddleware = new AuthMiddleware($container->get(JWTService::class));
 
-    $protectedGroup = $app->group('', function (RouteCollectorProxy $outer) use ($container): void {
+    $subscriptionService = $container->get(SubscriptionService::class);
+    $moduleMiddleware    = fn(string $module) => new RequireModuleMiddleware($subscriptionService, $module);
+
+    $protectedGroup = $app->group('', function (RouteCollectorProxy $outer) use ($container, $moduleMiddleware): void {
+
+        // ── Subscription checkout (authenticated) ────────────────────────────
+        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription']);
+        $outer->get('/payments/portal',                 [PaymentController::class, 'portal']);
+
+        // ── Admin routes (role = admin) ──────────────────────────────────────
+        $outer->group('/admin', function (RouteCollectorProxy $g) use ($container): void {
+            $g->get('',                          [AdminController::class, 'dashboard']);
+            $g->get('/dashboard',                [AdminController::class, 'dashboard']);
+            $g->get('/families',                 [AdminController::class, 'listFamilies']);
+            $g->get('/families/{id}',            [AdminController::class, 'getFamily']);
+            $g->patch('/families/{id}/modules',  [AdminController::class, 'updateModules']);
+            $g->get('/plans',                    [AdminController::class, 'listPlans']);
+            $g->put('/plans/{id}',               [AdminController::class, 'updatePlan']);
+            $g->get('/payments',                 [AdminController::class, 'listPayments']);
+        })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management
         $outer->group('/users', function (RouteCollectorProxy $group): void {
@@ -88,15 +119,16 @@ return function (App $app): void {
             $group->patch('/{id}/password', [UserController::class, 'changePassword']);
         });
 
-        // Children — all authenticated parents/admins
-        $outer->group('/children', function (RouteCollectorProxy $group): void {
+        // Children — base module (always available); medical sub-route gated
+        $outer->group('/children', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
             $group->get('',      [ChildController::class, 'index']);
             $group->post('',     [ChildController::class, 'create']);
             $group->put('/{id}', [ChildController::class, 'update']);
-            $group->get('/{id}/medical-history', [MedicalRecordController::class, 'childHistory']);
+            $group->get('/{id}/medical-history', [MedicalRecordController::class, 'childHistory'])
+                  ->add($moduleMiddleware('medical'));
         });
 
-        // Events — full CRUD
+        // Events — full CRUD (always available)
         $outer->group('/events', function (RouteCollectorProxy $group): void {
             $group->get('',         [EventController::class, 'index']);
             $group->post('',        [EventController::class, 'create']);
@@ -105,15 +137,16 @@ return function (App $app): void {
             $group->delete('/{id}', [EventController::class, 'destroy']);
         });
 
-        // Medical records — standalone creation
-        $outer->post('/medical-records', [MedicalRecordController::class, 'create']);
+        // Medical records — standalone creation (module: medical)
+        $outer->post('/medical-records', [MedicalRecordController::class, 'create'])
+              ->add($moduleMiddleware('medical'));
 
-        // Photos
+        // Photos (module: photos)
         $outer->group('/photos', function (RouteCollectorProxy $group): void {
             $group->get('',         [PhotoController::class, 'index']);
             $group->post('',        [PhotoController::class, 'upload']);
             $group->delete('/{id}', [PhotoController::class, 'destroy']);
-        });
+        })->add($moduleMiddleware('photos'));
 
         // Invitations — protected management
         $outer->group('/invitations', function (RouteCollectorProxy $group): void {
@@ -121,15 +154,15 @@ return function (App $app): void {
             $group->post('', [InvitationController::class, 'create']);
         });
 
-        // Expenses
+        // Expenses (module: expenses)
         $outer->group('/expenses', function (RouteCollectorProxy $group): void {
             $group->get('',         [ExpenseController::class, 'index']);
             $group->post('',        [ExpenseController::class, 'create']);
             $group->put('/{id}',    [ExpenseController::class, 'update']);
             $group->delete('/{id}', [ExpenseController::class, 'destroy']);
-        });
+        })->add($moduleMiddleware('expenses'));
 
-        // Threads + Messages
+        // Threads + Messages (module: messages)
         $outer->group('/threads', function (RouteCollectorProxy $group): void {
             $group->get('',    [ThreadController::class, 'index']);
             $group->post('',   [ThreadController::class, 'create']);
@@ -137,7 +170,14 @@ return function (App $app): void {
             $group->get('/{id}/messages',                     [ThreadController::class, 'messages']);
             $group->post('/{id}/messages',                    [ThreadController::class, 'sendMessage']);
             $group->patch('/{id}/messages/{msgId}/read',      [ThreadController::class, 'markRead']);
-        });
+        })->add($moduleMiddleware('messages'));
+
+        // Notifications summary (unread count)
+        $outer->get('/notifications/summary', [NotificationController::class, 'summary']);
+
+        // Account: GDPR export + account deletion
+        $outer->get('/account/export',  [AccountController::class, 'export']);
+        $outer->delete('/account',      [AccountController::class, 'delete']);
 
     })->add($authMiddleware);
 

@@ -1,6 +1,18 @@
-version: "3.9"
+# ─────────────────────────────────────────────────────────────────────────────
+# ZenCoParent — SaaS edition
+# PostgreSQL · Redis · MinIO · multi-tenant
+#
+# Usage:
+#   docker compose --env-file .env.saas up -d
+#
+# First run: migrations run automatically via the `migrate` init container.
+# Make sure `vendor/` is up-to-date on the host before starting:
+#   composer install --no-dev --optimize-autoloader
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
+
+  # ── nginx ────────────────────────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -14,6 +26,7 @@ services:
     networks:
       - zencoparent_net
 
+  # ── php-fpm ──────────────────────────────────────────────────────────────────
   php:
     build:
       context: ./docker/php
@@ -22,56 +35,115 @@ services:
     volumes:
       - .:/var/www/html
       - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+      - zencoparent_storage:/var/www/html/storage
+    environment:
+      ZENCO_ENV_FILE: .env.saas
     env_file:
-      - .env
+      - ${ZENCO_ENV_FILE:-.env.saas}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
-      minio:
-        condition: service_started
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
     networks:
       - zencoparent_net
 
+  # ── PostgreSQL migrations (init container) ────────────────────────────────────
+  migrate:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+    environment:
+      ZENCO_ENV_FILE: .env.saas
+    env_file:
+      - ${ZENCO_ENV_FILE:-.env.saas}
+    command: ["php", "/var/www/html/database/migrations/migrate.php"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - zencoparent_net
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE:-zencoparent}
+      POSTGRES_USER: ${DB_USERNAME:-zencoparent}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     volumes:
       - zencoparent_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-zencoparent} -d ${DB_DATABASE:-zencoparent}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - zencoparent_net
 
+  # ── Redis ─────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - zencoparent_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - zencoparent_net
 
+  # ── MinIO ─────────────────────────────────────────────────────────────────────
   minio:
     image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address :9001
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - zencoparent_minio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - zencoparent_net
+
+  # ── MinIO bucket init (init container) ───────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY &&
+        mc mb --ignore-existing local/$$MINIO_BUCKET &&
+        echo 'MinIO bucket ready.'
+      "
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-zencoparent}
+    restart: "no"
     networks:
       - zencoparent_net
 
@@ -83,3 +155,4 @@ volumes:
   zencoparent_pgdata:
   zencoparent_redis:
   zencoparent_minio:
+  zencoparent_storage:

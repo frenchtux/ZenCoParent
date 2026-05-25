@@ -8,7 +8,7 @@ use Dotenv\Dotenv;
 
 // Support alternate env file (e.g. ZENCO_ENV_FILE=.env.saas for SaaS dev server)
 $envFile = $_SERVER['ZENCO_ENV_FILE'] ?? getenv('ZENCO_ENV_FILE') ?: '.env';
-Dotenv::createImmutable(dirname(__DIR__), $envFile)->load();
+Dotenv::createImmutable(dirname(__DIR__), $envFile)->safeLoad();
 
 /** @var \Slim\App $app */
 $app = require __DIR__ . '/../src/bootstrap/app.php';
