@@ -41,7 +41,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      120.0,
             description: 'Groceries',
             category:    'food',
-            splitRatio:  [$this->userId => 50],
             date:        '2026-06-01',
         ));
 
@@ -61,7 +60,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      0.0,
             description: 'Nothing',
             category:    null,
-            splitRatio:  [],
             date:        '2026-06-01',
         ));
     }
@@ -76,7 +74,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      -10.0,
             description: 'Refund',
             category:    null,
-            splitRatio:  [],
             date:        '2026-06-01',
         ));
     }
@@ -91,7 +88,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      50.0,
             description: '   ',
             category:    null,
-            splitRatio:  [],
             date:        '2026-06-01',
         ));
     }
@@ -106,7 +102,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      50.0,
             description: 'Test',
             category:    null,
-            splitRatio:  [],
             date:        'not-a-date',
         ));
     }
@@ -121,7 +116,6 @@ final class CreateExpenseHandlerTest extends TestCase
             amount:      50.0,
             description: 'Coffee',
             category:    null,
-            splitRatio:  [],
             date:        '2026-06-01',
         ));
 

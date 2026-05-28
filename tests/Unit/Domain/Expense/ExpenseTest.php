@@ -49,7 +49,6 @@ final class ExpenseTest extends TestCase
             amount:      200.0,
             description: 'Updated',
             category:    'food',
-            splitRatio:  [$this->paidBy => 100],
             date:        '2026-06-15',
         );
 
