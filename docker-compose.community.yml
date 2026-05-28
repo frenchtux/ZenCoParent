@@ -1,39 +1,47 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# ZenCoParent — Community edition
-# Single-tenant · SQLite · no external services required
+# ZenCoParent — Community edition  (standalone, aucun prérequis local)
+# Single-tenant · SQLite · sans services externes
 #
-# Usage:
-#   docker compose -f docker-compose.community.yml up -d --build
-#   Open http://localhost
+# Usage — un seul fichier suffit, pas besoin de cloner le dépôt :
 #
-# The database is created automatically on first start.
-# To wipe all data and start fresh:
+#   curl -O https://raw.githubusercontent.com/frenchtux/ZenCoParent/main/docker-compose.community.yml
+#   docker compose -f docker-compose.community.yml up -d
+#   # Ouvrir http://localhost
+#
+# Les sources sont clonées depuis GitHub au moment du premier build.
+# Pour mettre à jour vers la dernière version :
+#   docker compose -f docker-compose.community.yml build --no-cache && \
+#   docker compose -f docker-compose.community.yml up -d
+#
+# Pour tout effacer et repartir de zéro :
 #   docker compose -f docker-compose.community.yml down -v
 #
-# ⚠ Change APP_SECRET, JWT_SECRET and CSRF_SECRET before any real use.
+# ⚠  Changer APP_SECRET, JWT_SECRET et CSRF_SECRET avant tout usage réel.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
 
   # ── nginx ─────────────────────────────────────────────────────────────────────
+  # Config baked dans l'image — aucun fichier local requis.
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: "https://github.com/frenchtux/ZenCoParent.git#main:docker/nginx"
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
       - php
     volumes:
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - app_code:/var/www/html:ro
     networks:
       - zenco_net
 
-  # ── php-fpm (code + SQLite) ───────────────────────────────────────────────────
-  # Image is built locally from the project root; SQLite migrations run at startup.
+  # ── php-fpm ───────────────────────────────────────────────────────────────────
+  # Sources clonées depuis GitHub ; migrations SQLite lancées au démarrage.
   php:
     build:
-      context: .
+      context: "https://github.com/frenchtux/ZenCoParent.git#main"
       dockerfile: docker/php/Dockerfile.community
     restart: unless-stopped
     volumes:
@@ -43,7 +51,7 @@ services:
       APP_NAME: ZenCoParent
       APP_ENV: production
       APP_MODE: community
-      # ⚠ Change these secrets before handling real user data.
+      # ⚠ Changer ces secrets avant tout usage avec de vraies données.
       APP_SECRET: "change-me-to-a-long-random-secret-min-32-chars!!"
       APP_URL: "http://localhost"
       APP_DEBUG: "false"
@@ -65,7 +73,7 @@ networks:
     driver: bridge
 
 volumes:
-  # Populated from the PHP image on first start; nginx reads it read-only.
+  # Peuplé depuis l'image PHP au premier démarrage ; nginx le monte en lecture seule.
   app_code:
-  # Persistent storage: SQLite database + uploaded files.
+  # Stockage persistant : base SQLite + fichiers uploadés.
   zenco_storage:
