@@ -71,31 +71,10 @@ if ($user) {
     echo "[OK]   User '{$email}' créé (id={$userId})\n";
 }
 
-// ── Parent user ────────────────────────────────────────────────────────────────
-$parentEmail = 'parent@zencoparent.local';
-$row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :email');
-$row->execute(['tid' => $tenantId, 'email' => $parentEmail]);
-$parent = $row->fetch();
-
-$hash2 = password_hash('Parent1234!', PASSWORD_BCRYPT);
-if ($parent) {
-    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
-        ->execute(['hash' => $hash2, 'id' => $parent['id']]);
-    echo "[OK]   User '{$parentEmail}' mot de passe mis à jour\n";
-} else {
-    $pdo->prepare(
-        "INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:tid, :email, :hash, 'Parent', 'ZenCoParent', 'parent', true, NOW(), NOW())"
-    )->execute(['tid' => $tenantId, 'email' => $parentEmail, 'hash' => $hash2]);
-    echo "[OK]   User '{$parentEmail}' créé\n";
-}
-
 echo "\n";
 echo "══════════════════════════════════════════════════════\n";
-echo "  Comptes par défaut (SaaS — PostgreSQL) :\n";
+echo "  Compte par défaut (SaaS — PostgreSQL) :\n";
 echo "  Tenant slug   : {$tenantSlug}\n";
 echo "  Login admin   : {$email}\n";
 echo "  Mot de passe  : Admin1234!\n";
-echo "  Login parent  : {$parentEmail}\n";
-echo "  Mot de passe  : Parent1234!\n";
 echo "══════════════════════════════════════════════════════\n";
