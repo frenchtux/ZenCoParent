@@ -9,7 +9,10 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Dotenv\Dotenv;
 
-Dotenv::createImmutable(__DIR__)->load();
+// Load .env if present (local dev); in Docker the env is injected via compose.
+if (file_exists(__DIR__ . '/.env')) {
+    Dotenv::createImmutable(__DIR__)->load();
+}
 
 $dbFile = $_ENV['DB_FILE'] ?? __DIR__ . '/storage/database.sqlite';
 $pdo = new PDO("sqlite:{$dbFile}", options: [
