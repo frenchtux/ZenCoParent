@@ -6,6 +6,9 @@ RUN apk add --no-cache \
     libzip-dev \
     icu-dev \
     oniguruma-dev \
+    sqlite-dev \
+    curl \
+    su-exec \
     $PHPIZE_DEPS
 
 # Install PHP extensions
@@ -35,5 +38,9 @@ WORKDIR /var/www/html
 # Create working directory with proper ownership
 RUN chown -R www-data:www-data /var/www/html
 
-# Switch to non-root user
-USER www-data
+# Copy entrypoint (runs as root to fix storage volume permissions, then starts php-fpm)
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm"]

@@ -2,14 +2,13 @@
 set -e
 
 # ── Fix storage directory permissions ─────────────────────────────────────────
-# The named volume mounted at /var/www/html/storage may be root-owned on first
-# start. Ensure www-data can read/write (this runs as root before privilege drop).
-mkdir -p /var/www/html/storage
+# Named volumes are root-owned by default on first mount. Ensure www-data can
+# read/write the storage tree (DI cache, uploads, logs, etc.).
+mkdir -p /var/www/html/storage/cache/di \
+         /var/www/html/storage/logs \
+         /var/www/html/storage/uploads
 chown -R www-data:www-data /var/www/html/storage
 chmod 750 /var/www/html/storage
-
-echo "[entrypoint] Running SQLite migrations..."
-su-exec www-data php /var/www/html/database/migrations/migrate_sqlite.php
 
 echo "[entrypoint] Starting php-fpm..."
 exec "$@"

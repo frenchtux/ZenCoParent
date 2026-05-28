@@ -6,6 +6,8 @@ RUN apk add --no-cache \
         libzip-dev \
         icu-dev \
         oniguruma-dev \
+        sqlite-dev \
+        su-exec \
         $PHPIZE_DEPS
 
 # ── PHP extensions ────────────────────────────────────────────────────────────
@@ -32,16 +34,22 @@ WORKDIR /var/www/html
 # Pour un build reproductible, commiter composer.lock et ajouter ici :
 #   COPY composer.lock ./
 COPY composer.json ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --no-security-blocking
 
 # ── Application code ──────────────────────────────────────────────────────────
 COPY . .
 
-# ── Ownership + entrypoint ────────────────────────────────────────────────────
-RUN chown -R www-data:www-data /var/www/html \
+# ── Pre-create storage dir with correct ownership ─────────────────────────────
+# The zenco_storage volume is mounted over /var/www/html/storage at runtime.
+# Docker initialises empty volumes from the image layer, so creating the dir
+# here (owned by www-data) ensures the volume starts with correct permissions.
+RUN mkdir -p /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html \
     && chmod +x /var/www/html/docker/php/entrypoint-community.sh
 
-USER www-data
+# NOTE: No USER directive — entrypoint runs as root so it can fix storage
+# permissions on the named volume, then drops to www-data via su-exec.
+# php-fpm master also requires root to manage worker processes.
 
 ENTRYPOINT ["/var/www/html/docker/php/entrypoint-community.sh"]
 CMD ["php-fpm"]

@@ -180,6 +180,11 @@ if ($files === false || count($files) === 0) {
     exit(0);
 }
 
+// SQLite-specific overrides live in database/migrations/sqlite/<filename>.
+// When an override exists it is used AS-IS (no rewriting), since it is
+// already written in SQLite-compatible SQL.
+$sqliteOverrideDir = __DIR__ . '/sqlite';
+
 sort($files);
 
 // ---------------------------------------------------------------------------
@@ -197,14 +202,23 @@ foreach ($files as $filepath) {
         continue;
     }
 
-    $rawSql = file_get_contents($filepath);
+    // Check for a SQLite-specific override first.
+    $overridePath = $sqliteOverrideDir . '/' . $filename;
+    if (file_exists($overridePath)) {
+        $rawSql = file_get_contents($overridePath);
+        $usedOverride = true;
+    } else {
+        $rawSql = file_get_contents($filepath);
+        $usedOverride = false;
+    }
 
     if ($rawSql === false || trim($rawSql) === '') {
         out('  [WARN]    ' . $filename . ' — empty or unreadable, skipping', 'yellow');
         continue;
     }
 
-    $sql = rewriteForSqlite($rawSql);
+    // SQLite overrides are already written in SQLite SQL — no rewriting needed.
+    $sql = $usedOverride ? $rawSql : rewriteForSqlite($rawSql);
 
     try {
         $pdo->beginTransaction();

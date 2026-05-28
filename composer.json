@@ -42,11 +42,11 @@
         "sort-packages": true,
         "allow-plugins": {
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": ["PKSA-y2cr-5h3j-g3ys"],
+            "block-insecure": false
         }
-    },
-    "audit": {
-        "ignore": ["PKSA-y2cr-5h3j-g3ys"],
-        "block-insecure": false
     },
     "minimum-stability": "stable",
     "prefer-stable": true
