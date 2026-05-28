@@ -75,6 +75,25 @@ function rewriteForSqlite(string $sql): string
 }
 
 // ---------------------------------------------------------------------------
+// Split SQL into statements, ignoring semicolons inside -- comment lines
+// ---------------------------------------------------------------------------
+
+function splitSqlStatements(string $sql): array
+{
+    $current = '';
+    foreach (explode("\n", $sql) as $line) {
+        if (str_starts_with(ltrim($line), '--')) {
+            continue;
+        }
+        $current .= $line . "\n";
+    }
+    return array_values(array_filter(
+        array_map('trim', explode(';', $current)),
+        fn(string $s): bool => $s !== ''
+    ));
+}
+
+// ---------------------------------------------------------------------------
 // Generate a UUID v4 in PHP
 // ---------------------------------------------------------------------------
 
@@ -223,12 +242,8 @@ foreach ($files as $filepath) {
     try {
         $pdo->beginTransaction();
 
-        // SQLite's PDO::exec() does not support multiple statements separated by ';'
-        // in all builds; split on ';' and execute individually.
-        $statements = array_filter(
-            array_map('trim', explode(';', $sql)),
-            fn(string $s): bool => $s !== ''
-        );
+        // Split on ';' but ignore semicolons inside -- comment lines.
+        $statements = splitSqlStatements($sql);
 
         foreach ($statements as $statement) {
             $pdo->exec($statement);

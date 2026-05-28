@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# ── Fix storage directory permissions ─────────────────────────────────────────
+# â”€â”€ Fix storage directory permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # The named volume mounted at /var/www/html/storage may be root-owned on first
 # start. Ensure www-data can read/write (this runs as root before privilege drop).
 mkdir -p /var/www/html/storage

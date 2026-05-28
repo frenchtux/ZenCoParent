@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# ── Fix storage directory permissions ─────────────────────────────────────────
+# â”€â”€ Fix storage directory permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Named volumes are root-owned by default on first mount. Ensure www-data can
 # read/write the storage tree (DI cache, uploads, logs, etc.).
 mkdir -p /var/www/html/storage/cache/di \
