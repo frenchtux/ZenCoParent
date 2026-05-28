@@ -85,7 +85,7 @@
       await api.post('/children', {
         first_name:    firstName,
         last_name:     lastName  || '',
-        date_of_birth: dob       || null,
+        birthdate:     dob       || null,
       });
       finish();
     } catch (err) {

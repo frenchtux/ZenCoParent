@@ -27,6 +27,7 @@
     bindNavButtons();
     bindNewEventButton();
     buildChildSelect();
+    bindTypeSelect();
   }
 
   /* ── Data loading ─────────────────────────────────────────── */
@@ -274,8 +275,14 @@
     });
   }
 
+  function toggleReportField(type) {
+    const group = document.getElementById('event-report-group');
+    if (group) group.style.display = (type === 'medical') ? '' : 'none';
+  }
+
   function resetEventForm() {
     document.getElementById('event-form').reset();
+    toggleReportField('');
     document.querySelectorAll('#event-form .form-error').forEach(el => {
       el.textContent = '';
       el.classList.add('hidden');
@@ -283,6 +290,11 @@
     document.querySelectorAll('#event-form .form-input, #event-form .form-select, #event-form .form-textarea').forEach(el => {
       el.classList.remove('error');
     });
+  }
+
+  function bindTypeSelect() {
+    const sel = document.getElementById('event-type');
+    if (sel) sel.addEventListener('change', function () { toggleReportField(this.value); });
   }
 
   global.openEditEvent = function (ev) {
@@ -298,6 +310,10 @@
     document.getElementById('event-time').value        = ev.start_time || (startAt.length > 10 ? startAt.slice(11, 16) : '');
     document.getElementById('event-child-id').value   = ev.child_id || '';
     document.getElementById('event-description').value = ev.description || '';
+    toggleReportField(ev.type || '');
+    if (ev.type === 'medical') {
+      document.getElementById('event-report').value = ev.report || '';
+    }
     openModal('event-modal');
   };
 
@@ -332,16 +348,25 @@
     const dateVal = document.getElementById('event-date').value;
     const timeVal = document.getElementById('event-time').value || '00:00';
     const startAt = dateVal ? `${dateVal}T${timeVal}:00` : null;
-    const endAt   = startAt ? `${dateVal}T${(parseInt(timeVal.split(':')[0], 10) + 1).toString().padStart(2, '0')}:${timeVal.split(':')[1]}:00` : null;
+    let endAt = null;
+    if (startAt) {
+      const startDate = new Date(`${dateVal}T${timeVal}:00`);
+      startDate.setHours(startDate.getHours() + 1);
+      endAt = startDate.toISOString().slice(0, 19);
+    }
 
+    const eventType = document.getElementById('event-type').value;
     const payload = {
       title:       document.getElementById('event-title').value.trim(),
-      type:        document.getElementById('event-type').value,
+      type:        eventType,
       start_at:    startAt,
       end_at:      endAt,
       child_id:    document.getElementById('event-child-id').value || null,
       description: document.getElementById('event-description').value.trim() || null,
     };
+    if (eventType === 'medical') {
+      payload.report = document.getElementById('event-report').value.trim() || null;
+    }
 
     if (!payload.title) {
       toast('Le titre est requis.', 'warning');

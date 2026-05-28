@@ -295,12 +295,14 @@
 
   <script src="/frontend/js/api.js"></script>
   <script>
-    // Inject SaaS theme on port 8081
-    if (window.location.port === '8081') {
-      const l = document.createElement('link');
-      l.rel = 'stylesheet'; l.href = '/frontend/css/theme-saas.css';
-      document.head.appendChild(l);
-    }
+    // Inject SaaS theme based on /mode API
+    fetch('/mode').then(r => r.json()).then(function (res) {
+      if (res && res.data && res.data.mode === 'saas') {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet'; l.href = '/frontend/css/theme-saas.css';
+        document.head.appendChild(l);
+      }
+    }).catch(function () {});
   </script>
   <script>
     (function () {
