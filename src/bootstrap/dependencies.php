@@ -260,6 +260,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new LicenseService(
                 $c->get(LicenseRepositoryInterface::class),
                 $masterKey,
+                $c->get(LoggerInterface::class),
             );
         },
 
@@ -414,6 +415,12 @@ return function (ContainerBuilder $containerBuilder) {
             return new \ZenCoParent\Api\Controllers\AccountController(
                 $c->get(GdprExportHandler::class),
                 $c->get(DeleteAccountHandler::class),
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\AdminLicenseController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\AdminLicenseController(
+                $c->get(LicenseService::class)
             );
         },
 

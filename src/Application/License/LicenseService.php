@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace ZenCoParent\Application\License;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use ZenCoParent\Domain\License\License;
 use ZenCoParent\Domain\License\LicenseRepositoryInterface;
 
@@ -11,6 +13,7 @@ final class LicenseService
     public function __construct(
         private LicenseRepositoryInterface $repo,
         private string                     $masterKey,
+        private LoggerInterface            $logger = new NullLogger(),
     ) {}
 
     /**
@@ -31,6 +34,7 @@ final class LicenseService
 
     /**
      * Validate and apply an activation key.
+     * Stores the machine fingerprint on success.
      * Returns true on success, false if the key is wrong.
      */
     public function activate(string $activationKey): bool
@@ -42,9 +46,47 @@ final class LicenseService
             return false;
         }
 
-        $activated = $license->withActivation(strtoupper(trim($activationKey)));
+        $fingerprint = $this->calculateMachineFingerprint();
+        $activated   = $license->withActivation(strtoupper(trim($activationKey)), $fingerprint);
         $this->repo->update($activated);
         return true;
+    }
+
+    /**
+     * Revoke the current installation license.
+     * Returns false if no license exists or it is already revoked.
+     */
+    public function revoke(): bool
+    {
+        $license = $this->repo->get();
+        if ($license === null || $license->isRevoked()) {
+            return false;
+        }
+        $this->repo->update($license->withRevocation());
+        return true;
+    }
+
+    /**
+     * Check whether the current machine fingerprint matches the stored one.
+     * Logs a warning if a mismatch is detected (possible cloned installation).
+     * Never blocks — detection only.
+     */
+    public function checkFingerprint(License $license): void
+    {
+        $stored = $license->getMachineFingerprint();
+        if ($stored === null) {
+            return;
+        }
+        $current = $this->calculateMachineFingerprint();
+        if (!hash_equals($stored, $current)) {
+            $this->logger->warning(
+                'License fingerprint mismatch — possible cloned installation.',
+                [
+                    'installation_key' => $license->getInstallationKey(),
+                    'instance_id'      => $license->getInstanceId(),
+                ]
+            );
+        }
     }
 
     /**
@@ -60,6 +102,8 @@ final class LicenseService
         return 'ACT-' . implode('-', str_split($chars, 4));
     }
 
+    // ── Private helpers ───────────────────────────────────────────────────────
+
     /**
      * Format: ZNCO-XXXX-XXXX-XXXX-XXXX-XXXX  (20 uppercase hex chars, grouped)
      */
@@ -67,5 +111,39 @@ final class LicenseService
     {
         $hex = strtoupper(bin2hex(random_bytes(10)));
         return 'ZNCO-' . implode('-', str_split($hex, 4));
+    }
+
+    /**
+     * SHA-256 of: hostname + installation path + first available MAC address.
+     */
+    private function calculateMachineFingerprint(): string
+    {
+        $hostname = gethostname() ?: 'unknown';
+        $path     = realpath(__DIR__ . '/../../../') ?: __DIR__;
+        $mac      = $this->getFirstMacAddress();
+        return hash('sha256', implode('|', [$hostname, $path, $mac]));
+    }
+
+    private function getFirstMacAddress(): string
+    {
+        // Prefer Linux /sys/class/net (works in Docker without shell_exec)
+        $sysNet = '/sys/class/net';
+        if (is_dir($sysNet)) {
+            foreach (scandir($sysNet) ?: [] as $iface) {
+                if ($iface === '.' || $iface === '..' || $iface === 'lo') {
+                    continue;
+                }
+                $addr = @file_get_contents("{$sysNet}/{$iface}/address");
+                if ($addr && trim($addr) !== '00:00:00:00:00:00') {
+                    return trim($addr);
+                }
+            }
+        }
+        // Fallback: ip command (Linux/Docker)
+        $output = @shell_exec("ip link show 2>/dev/null | grep -oP '(?<=ether )[\w:]+' | head -1");
+        if ($output && trim($output) !== '') {
+            return trim($output);
+        }
+        return 'unknown';
     }
 }
