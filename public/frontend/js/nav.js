@@ -118,10 +118,12 @@
   }
 
   /* ── Theme injection ─────────────────────────────────────── */
+  // Le mode est détecté via l'API /mode et mis en cache localStorage
+  // pour éviter le flash visuel (FOUC) lors des chargements suivants.
 
-  const IS_SAAS = window.location.port === '8081';
+  let IS_SAAS = localStorage.getItem('zenco_mode') === 'saas';
 
-  (function applyTheme() {
+  function applyTheme() {
     if (!IS_SAAS) return;
     if (document.getElementById('zenco-theme-saas')) return;
     const link = document.createElement('link');
@@ -129,7 +131,29 @@
     link.rel  = 'stylesheet';
     link.href = '/frontend/css/theme-saas.css';
     document.head.appendChild(link);
-  })();
+  }
+
+  function removeTheme() {
+    const existing = document.getElementById('zenco-theme-saas');
+    if (existing) existing.remove();
+  }
+
+  // Application immédiate depuis le cache
+  applyTheme();
+
+  // Rafraîchissement depuis l'API (sans bloquer le rendu)
+  fetch('/mode', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      var mode    = (data && data.data && data.data.mode) || 'community';
+      var nowSaas = mode === 'saas';
+      localStorage.setItem('zenco_mode', mode);
+      if (nowSaas !== IS_SAAS) {
+        IS_SAAS = nowSaas;
+        nowSaas ? applyTheme() : removeTheme();
+      }
+    })
+    .catch(function () { /* réseau indisponible — conserver le cache */ });
 
   /**
    * Render the sidebar into #app-shell before .main-content.
