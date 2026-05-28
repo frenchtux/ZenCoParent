@@ -12,7 +12,7 @@ echo "[entrypoint] Running SQLite migrations..."
 su-exec www-data php /var/www/html/database/migrations/migrate_sqlite.php
 
 echo "[entrypoint] Seeding default admin (tenant: zencoparent)..."
-su-exec www-data php /var/www/html/seed_admin.php
+su-exec www-data php /var/www/html/seed_admin.php || echo "[entrypoint] Seed warning (non-fatal, continuing...)"
 
 echo "[entrypoint] Starting php-fpm..."
 exec "$@"
