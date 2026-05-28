@@ -51,11 +51,13 @@ $row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :e
 $row->execute(['tid' => $tenantId, 'email' => $email]);
 $user = $row->fetch();
 
+$hash = password_hash($password, PASSWORD_BCRYPT);
 if ($user) {
-    echo "[SKIP] User '{$email}' already exists (id={$user['id']})\n";
+    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+        ->execute(['hash' => $hash, 'id' => $user['id']]);
+    echo "[OK]   User '{$email}' mot de passe mis à jour (id={$user['id']})\n";
 } else {
     $userId = uuid4();
-    $hash   = password_hash($password, PASSWORD_BCRYPT);
     $pdo->prepare(
         "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
          VALUES (:id, :tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', 1, datetime('now'), datetime('now'))"
@@ -74,11 +76,13 @@ $row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :e
 $row->execute(['tid' => $tenantId, 'email' => $parentEmail]);
 $parent = $row->fetch();
 
+$hash2 = password_hash('Parent1234!', PASSWORD_BCRYPT);
 if ($parent) {
-    echo "[SKIP] User '{$parentEmail}' already exists\n";
+    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+        ->execute(['hash' => $hash2, 'id' => $parent['id']]);
+    echo "[OK]   User '{$parentEmail}' mot de passe mis à jour\n";
 } else {
     $parentId = uuid4();
-    $hash2    = password_hash('Parent1234!', PASSWORD_BCRYPT);
     $pdo->prepare(
         "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
          VALUES (:id, :tid, :email, :hash, 'Parent', 'ZenCoParent', 'parent', 1, datetime('now'), datetime('now'))"
