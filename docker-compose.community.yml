@@ -65,6 +65,17 @@ services:
       STORAGE_URL: "http://localhost/storage"
       RATE_LIMIT_REQUESTS: "60"
       RATE_LIMIT_WINDOW: "60"
+      # ── Email / SMTP transactionnel ──────────────────────────────────────────
+      # Laisser MAIL_HOST vide pour désactiver l'envoi d'e-mails.
+      # Exemples : Mailtrap (sandbox.smtp.mailtrap.io:2525),
+      #            Resend (smtp.resend.com:465), Gmail (smtp.gmail.com:587)
+      MAIL_HOST: ""
+      MAIL_PORT: "587"
+      MAIL_ENCRYPTION: "tls"
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_FROM_ADDRESS: "noreply@zencoparent.com"
+      MAIL_FROM_NAME: "ZenCoParent"
     networks:
       - zenco_net
 

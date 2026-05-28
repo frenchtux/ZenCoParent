@@ -11,5 +11,8 @@ chmod 750 /var/www/html/storage
 echo "[entrypoint] Running SQLite migrations..."
 su-exec www-data php /var/www/html/database/migrations/migrate_sqlite.php
 
+echo "[entrypoint] Seeding default admin (tenant: zencoparent)..."
+su-exec www-data php /var/www/html/seed_admin.php
+
 echo "[entrypoint] Starting php-fpm..."
 exec "$@"

@@ -249,18 +249,54 @@ abstract class IntegrationTestCase extends TestCase
 
     private function runMigrations(): void
     {
-        $migrationDir = __DIR__ . '/../../../database/migrations';
-        $sqlFiles     = glob($migrationDir . '/0*.sql');
+        $migrationDir    = __DIR__ . '/../../../database/migrations';
+        $sqliteOverrides = $migrationDir . '/sqlite';
+        $sqlFiles        = glob($migrationDir . '/0*.sql');
         sort($sqlFiles);
 
         foreach ($sqlFiles as $file) {
-            $sql = file_get_contents($file);
-            $sql = $this->rewriteForSqlite($sql);
+            $filename     = basename($file);
+            $overridePath = $sqliteOverrides . '/' . $filename;
 
-            foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
+            if (file_exists($overridePath)) {
+                // SQLite-specific override: use as-is, no rewriting needed.
+                $sql = file_get_contents($overridePath);
+            } else {
+                $sql = $this->rewriteForSqlite(file_get_contents($file));
+            }
+
+            foreach ($this->splitSqlStatements($sql) as $statement) {
                 $this->pdo->exec($statement);
             }
         }
+    }
+
+    /**
+     * Split a SQL string into individual statements, ignoring semicolons inside comments.
+     * Simple line-by-line state machine: strips -- comment lines before splitting.
+     */
+    private function splitSqlStatements(string $sql): array
+    {
+        $statements = [];
+        $current    = '';
+
+        foreach (explode("\n", $sql) as $line) {
+            $trimmed = ltrim($line);
+            if (str_starts_with($trimmed, '--')) {
+                // Skip comment lines — don't accumulate them to avoid semicolons inside comments.
+                continue;
+            }
+            $current .= $line . "\n";
+        }
+
+        foreach (explode(';', $current) as $fragment) {
+            $fragment = trim($fragment);
+            if ($fragment !== '') {
+                $statements[] = $fragment;
+            }
+        }
+
+        return $statements;
     }
 
     private function rewriteForSqlite(string $sql): string

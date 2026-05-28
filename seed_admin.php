@@ -26,7 +26,7 @@ function uuid4(): string {
 }
 
 // ── Tenant ────────────────────────────────────────────────────────────────────
-$tenantSlug = 'demo';
+$tenantSlug = 'zencoparent';
 $row = $pdo->prepare('SELECT id FROM tenants WHERE slug = :slug');
 $row->execute(['slug' => $tenantSlug]);
 $tenant = $row->fetch();
@@ -39,7 +39,7 @@ if ($tenant) {
     $pdo->prepare(
         "INSERT INTO tenants (id, name, slug, is_active, created_at, updated_at)
          VALUES (:id, :name, :slug, 1, datetime('now'), datetime('now'))"
-    )->execute(['id' => $tenantId, 'name' => 'Demo', 'slug' => $tenantSlug]);
+    )->execute(['id' => $tenantId, 'name' => 'ZenCoParent', 'slug' => $tenantSlug]);
     echo "[OK]   Tenant '{$tenantSlug}' créé (id={$tenantId})\n";
 }
 
@@ -58,7 +58,7 @@ if ($user) {
     $hash   = password_hash($password, PASSWORD_BCRYPT);
     $pdo->prepare(
         "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:id, :tid, :email, :hash, 'Admin', 'Demo', 'admin', 1, datetime('now'), datetime('now'))"
+         VALUES (:id, :tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', 1, datetime('now'), datetime('now'))"
     )->execute([
         'id'    => $userId,
         'tid'   => $tenantId,
@@ -81,7 +81,7 @@ if ($parent) {
     $hash2    = password_hash('Parent1234!', PASSWORD_BCRYPT);
     $pdo->prepare(
         "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:id, :tid, :email, :hash, 'Parent', 'Demo', 'parent', 1, datetime('now'), datetime('now'))"
+         VALUES (:id, :tid, :email, :hash, 'Parent', 'ZenCoParent', 'parent', 1, datetime('now'), datetime('now'))"
     )->execute([
         'id'    => $parentId,
         'tid'   => $tenantId,
@@ -92,9 +92,11 @@ if ($parent) {
 }
 
 echo "\n";
-echo "══════════════════════════════════════════════\n";
-echo "  Comptes de test créés :\n";
-echo "  Tenant slug : {$tenantSlug}\n";
-echo "  Admin  : {$email}  /  Admin1234!\n";
-echo "  Parent : {$parentEmail}  /  Parent1234!\n";
-echo "══════════════════════════════════════════════\n";
+echo "══════════════════════════════════════════════════════\n";
+echo "  Comptes par défaut (Community — SQLite) :\n";
+echo "  Tenant slug   : {$tenantSlug}\n";
+echo "  Login admin   : {$email}\n";
+echo "  Mot de passe  : Admin1234!\n";
+echo "  Login parent  : {$parentEmail}\n";
+echo "  Mot de passe  : Parent1234!\n";
+echo "══════════════════════════════════════════════════════\n";
