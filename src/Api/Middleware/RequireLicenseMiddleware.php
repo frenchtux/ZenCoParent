@@ -24,6 +24,9 @@ final class RequireLicenseMiddleware implements MiddlewareInterface
 
         $license = $this->licenseService->getOrCreate();
 
+        // Non-blocking fingerprint check: logs a warning on mismatch, never blocks
+        $this->licenseService->checkFingerprint($license);
+
         if ($license->isLicensed()) {
             // Forward license info as a request attribute for controllers that need it
             return $handler->handle(
@@ -31,12 +34,14 @@ final class RequireLicenseMiddleware implements MiddlewareInterface
             );
         }
 
-        // Trial expired and not activated: 402 Payment Required
+        // Trial expired and not activated (or revoked): 402 Payment Required
         $response = new \Slim\Psr7\Response();
         $body     = json_encode([
             'success' => false,
-            'error'   => 'license_expired',
-            'message' => "La période d'essai de 30 jours a expiré. Activez votre licence sur /frontend/license.html",
+            'error'   => $license->isRevoked() ? 'license_revoked' : 'license_expired',
+            'message' => $license->isRevoked()
+                ? "Cette licence a été révoquée. Contactez le support ZenCoParent."
+                : "La période d'essai de 30 jours a expiré. Activez votre licence sur /frontend/license.html",
             'data'    => [
                 'installation_key'     => $license->getInstallationKey(),
                 'trial_days_remaining' => 0,

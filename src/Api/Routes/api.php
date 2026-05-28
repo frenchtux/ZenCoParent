@@ -5,11 +5,13 @@ use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
+use ZenCoParent\Api\Controllers\AdminLicenseController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\LicenseController;
 use ZenCoParent\Api\Controllers\NotificationController;
 use ZenCoParent\Api\Controllers\PaymentController;
 use ZenCoParent\Api\Middleware\RequireLicenseMiddleware;
+use ZenCoParent\Api\Middleware\RequireMasterKeyMiddleware;
 use ZenCoParent\Api\Middleware\RequireModuleMiddleware;
 use ZenCoParent\Application\License\LicenseService;
 use ZenCoParent\Application\Subscription\SubscriptionService;
@@ -71,6 +73,15 @@ return function (App $app): void {
     // ── License routes (public — accessible even when trial expired) ─────────
     $app->get('/license',          [LicenseController::class, 'status']);
     $app->post('/license/activate',[LicenseController::class, 'activate']);
+
+    // ── Admin license routes (master-key protected, no JWT required) ──────────
+    if (($_ENV['APP_MODE'] ?? 'saas') === 'saas') {
+        $masterKey = $_ENV['LICENSE_MASTER_KEY'] ?? '';
+        $app->group('/admin/license', function (RouteCollectorProxy $group) use ($container): void {
+            $group->get('/status',  [AdminLicenseController::class, 'status']);
+            $group->post('/revoke', [AdminLicenseController::class, 'revoke']);
+        })->add(new RequireMasterKeyMiddleware($masterKey));
+    }
 
     // ── Payment routes ────────────────────────────────────────────────────────
     // Webhook is public (Stripe signature verified inside the handler)
