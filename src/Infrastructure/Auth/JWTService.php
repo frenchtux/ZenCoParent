@@ -7,7 +7,7 @@ namespace ZenCoParent\Infrastructure\Auth;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
-final class JWTService
+class JWTService
 {
     private string $secret;
     private int $expiry;

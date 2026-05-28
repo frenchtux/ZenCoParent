@@ -118,5 +118,7 @@ final class CreateUserHandlerTest extends TestCase
             firstName: 'Alice',
             lastName:  'Dupont',
         ));
+
+        $this->addToAssertionCount(1);
     }
 }
