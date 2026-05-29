@@ -194,9 +194,52 @@
       .login-features { display: none; }
       .login-panel-right { width: 100%; padding: var(--space-6); }
     }
+  /* ── Change-credentials modal ── */
+  .cc-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .cc-overlay.active { display: flex; }
+  .cc-modal {
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    width: 100%; max-width: 420px;
+    box-shadow: var(--shadow-xl);
+  }
+  .cc-modal h3 { font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-2); }
+  .cc-modal p  { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-6); }
+  .cc-error { color: var(--color-error, #dc2626); font-size: var(--text-sm); margin-bottom: var(--space-4); display: none; }
   </style>
 </head>
 <body>
+  <!-- First-login change-credentials modal (non-closable) -->
+  <div class="cc-overlay" id="cc-overlay" role="dialog" aria-modal="true" aria-labelledby="cc-title">
+    <div class="cc-modal">
+      <h3 id="cc-title">Bienvenue — Sécurisez votre compte</h3>
+      <p>Pour votre sécurité, vous devez définir un nouvel email et un nouveau mot de passe avant d'accéder à l'application.</p>
+      <div class="cc-error" id="cc-error"></div>
+      <form id="cc-form" novalidate>
+        <div class="form-group" style="margin-bottom:var(--space-4)">
+          <label class="form-label required" for="cc-current-password">Mot de passe actuel</label>
+          <input class="form-input" type="password" id="cc-current-password" autocomplete="current-password" required />
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-4)">
+          <label class="form-label required" for="cc-new-email">Nouvel email</label>
+          <input class="form-input" type="email" id="cc-new-email" autocomplete="email" required />
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-6)">
+          <label class="form-label required" for="cc-new-password">Nouveau mot de passe <span style="font-weight:400;color:var(--color-text-muted)">(8 caractères min.)</span></label>
+          <input class="form-input" type="password" id="cc-new-password" autocomplete="new-password" required minlength="8" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="cc-submit">Enregistrer et continuer</button>
+      </form>
+    </div>
+  </div>
+
   <!-- Left illustration panel -->
   <aside class="login-panel-left" aria-hidden="true">
     <div class="login-illustration">
@@ -388,7 +431,11 @@
 
           if (result && result.success && result.data && result.data.user) {
             sessionStorage.setItem('zenco_user', JSON.stringify(result.data.user));
-            window.location.href = '/frontend/dashboard.html';
+            if (result.data.user.must_change_credentials) {
+              openChangeCredentialsModal();
+            } else {
+              window.location.href = '/frontend/dashboard.html';
+            }
           } else {
             showBannerError('Connexion échouée. Vérifiez vos identifiants.');
           }
@@ -402,6 +449,60 @@
           btn.classList.remove('loading');
           btn.disabled = false;
           btn.innerHTML = originalText;
+        }
+      });
+
+      // ── Change-credentials modal ──────────────────────────────────────────
+      function openChangeCredentialsModal() {
+        const overlay = document.getElementById('cc-overlay');
+        overlay.classList.add('active');
+        document.getElementById('cc-new-email').value =
+          (JSON.parse(sessionStorage.getItem('zenco_user') || '{}').email) || '';
+        document.getElementById('cc-current-password').focus();
+      }
+
+      document.getElementById('cc-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const errEl  = document.getElementById('cc-error');
+        const submit = document.getElementById('cc-submit');
+        errEl.style.display = 'none';
+
+        const currentPassword = document.getElementById('cc-current-password').value;
+        const newEmail        = document.getElementById('cc-new-email').value.trim();
+        const newPassword     = document.getElementById('cc-new-password').value;
+
+        if (!currentPassword || !newEmail || !newPassword) {
+          errEl.textContent = 'Tous les champs sont requis.';
+          errEl.style.display = 'block';
+          return;
+        }
+        if (newPassword.length < 8) {
+          errEl.textContent = 'Le nouveau mot de passe doit contenir au moins 8 caractères.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = 'Enregistrement…';
+        try {
+          const result = await api.patch('/users/me/credentials', {
+            current_password: currentPassword,
+            new_email:        newEmail,
+            new_password:     newPassword,
+          });
+          if (result && result.success) {
+            sessionStorage.setItem('zenco_user', JSON.stringify(result.data));
+            window.location.href = '/frontend/dashboard.html';
+          } else {
+            errEl.textContent = result.error || 'Erreur lors de la mise à jour.';
+            errEl.style.display = 'block';
+          }
+        } catch (err) {
+          errEl.textContent = err.message || 'Une erreur est survenue.';
+          errEl.style.display = 'block';
+        } finally {
+          submit.disabled = false;
+          submit.textContent = 'Enregistrer et continuer';
         }
       });
     })();

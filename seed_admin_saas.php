@@ -57,13 +57,13 @@ $user = $row->fetch();
 
 $hash = password_hash($password, PASSWORD_BCRYPT);
 if ($user) {
-    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+    $pdo->prepare('UPDATE users SET password_hash = :hash, must_change_credentials = true WHERE id = :id')
         ->execute(['hash' => $hash, 'id' => $user['id']]);
     echo "[OK]   User '{$email}' mot de passe mis à jour (id={$user['id']})\n";
 } else {
     $pdo->prepare(
-        "INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', true, NOW(), NOW())"
+        "INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, role, is_active, must_change_credentials, created_at, updated_at)
+         VALUES (:tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', true, true, NOW(), NOW())"
     )->execute(['tid' => $tenantId, 'email' => $email, 'hash' => $hash]);
     $row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :email');
     $row->execute(['tid' => $tenantId, 'email' => $email]);

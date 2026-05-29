@@ -124,10 +124,11 @@ return function (App $app): void {
             $group->get('',    [UserController::class, 'index']);
             $group->post('',   [UserController::class, 'create'])
                   ->add(new RequireRoleMiddleware(['admin']));
-            $group->get('/me', [UserController::class, 'me']);
-            $group->get('/{id}',            [UserController::class, 'show']);
-            $group->put('/{id}',            [UserController::class, 'update']);
-            $group->patch('/{id}/password', [UserController::class, 'changePassword']);
+            $group->get('/me',                [UserController::class, 'me']);
+            $group->patch('/me/credentials',  [UserController::class, 'changeCredentials']);
+            $group->get('/{id}',              [UserController::class, 'show']);
+            $group->put('/{id}',              [UserController::class, 'update']);
+            $group->patch('/{id}/password',   [UserController::class, 'changePassword']);
         });
 
         // Children — base module (always available); medical sub-route gated

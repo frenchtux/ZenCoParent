@@ -33,6 +33,7 @@ use ZenCoParent\Application\Auth\RegisterHandler;
 use ZenCoParent\Application\Invitation\AcceptInvitationHandler;
 use ZenCoParent\Application\Invitation\CreateInvitationHandler;
 use ZenCoParent\Application\Invitation\GetInvitationHandler;
+use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordHandler;
 use ZenCoParent\Application\User\GetUserHandler;
 use ZenCoParent\Application\User\UpdateUserHandler;
@@ -215,6 +216,10 @@ return function (ContainerBuilder $containerBuilder) {
 
         ChangePasswordHandler::class => function (ContainerInterface $c) {
             return new ChangePasswordHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        ChangeCredentialsHandler::class => function (ContainerInterface $c) {
+            return new ChangeCredentialsHandler($c->get(UserRepositoryInterface::class));
         },
 
         // JWT Service
