@@ -36,6 +36,7 @@ use ZenCoParent\Application\Invitation\GetInvitationHandler;
 use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordHandler;
 use ZenCoParent\Application\Settings\TenantSettingsService;
+use ZenCoParent\Domain\MedicalRecord\MedicalAttachmentRepositoryInterface;
 use ZenCoParent\Domain\User\UserTenantAccessRepositoryInterface;
 use ZenCoParent\Application\User\GetUserHandler;
 use ZenCoParent\Application\User\UpdateUserHandler;
@@ -222,6 +223,13 @@ return function (ContainerBuilder $containerBuilder) {
 
         ChangeCredentialsHandler::class => function (ContainerInterface $c) {
             return new ChangeCredentialsHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        MedicalAttachmentRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMedicalAttachmentRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalAttachmentRepository($pdo);
         },
 
         TenantSettingsService::class => function (ContainerInterface $c) {

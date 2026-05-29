@@ -5,6 +5,7 @@ use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
+use ZenCoParent\Api\Controllers\MedicalAttachmentController;
 use ZenCoParent\Api\Controllers\SettingsController;
 use ZenCoParent\Api\Controllers\AdminLicenseController;
 use ZenCoParent\Api\Controllers\AuthController;
@@ -173,6 +174,14 @@ return function (App $app): void {
         // Medical records — standalone creation (module: medical)
         $outer->post('/medical-records', [MedicalRecordController::class, 'create'])
               ->add($moduleMiddleware('medical'));
+
+        // Medical attachments (module: medical)
+        $outer->group('/medical-records/{id}/attachments', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
+            $group->get('',                            [MedicalAttachmentController::class, 'index']);
+            $group->post('',                           [MedicalAttachmentController::class, 'upload']);
+            $group->get('/{attachmentId}/download',    [MedicalAttachmentController::class, 'download']);
+            $group->delete('/{attachmentId}',          [MedicalAttachmentController::class, 'delete']);
+        })->add($moduleMiddleware('medical'));
 
         // Photos (module: photos)
         $outer->group('/photos', function (RouteCollectorProxy $group): void {
