@@ -213,6 +213,27 @@
   .cc-modal h3 { font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-2); }
   .cc-modal p  { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-6); }
   .cc-error { color: var(--color-error, #dc2626); font-size: var(--text-sm); margin-bottom: var(--space-4); display: none; }
+
+  /* ── Pending medical reports modal ── */
+  .mr-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 1010;
+    align-items: center; justify-content: center; padding: var(--space-4);
+  }
+  .mr-overlay.active { display: flex; }
+  .mr-modal {
+    background: var(--color-surface); border-radius: var(--radius-xl);
+    padding: var(--space-8); width: 100%; max-width: 540px;
+    box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;
+  }
+  .mr-modal h3 { font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-2); }
+  .mr-event-card {
+    border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+    padding: var(--space-4); margin-bottom: var(--space-4);
+  }
+  .mr-event-card h4 { font-size: var(--text-base); font-weight: 600; margin: 0 0 var(--space-1); }
+  .mr-event-date { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-3); }
+  .mr-error { color: var(--color-error, #dc2626); font-size: var(--text-sm); margin-bottom: var(--space-3); display: none; }
   </style>
 </head>
 <body>
@@ -237,6 +258,21 @@
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="cc-submit">Enregistrer et continuer</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Pending medical reports modal (non-closable) -->
+  <div class="mr-overlay" id="mr-overlay" role="dialog" aria-modal="true" aria-labelledby="mr-title">
+    <div class="mr-modal">
+      <h3 id="mr-title">⚕️ Comptes-rendus médicaux en attente</h3>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-5);">
+        Des rendez-vous médicaux passés n'ont pas encore de compte-rendu. Veuillez les renseigner avant de continuer.
+      </p>
+      <div id="mr-error" class="mr-error"></div>
+      <div id="mr-events-list"></div>
+      <button type="button" class="btn btn-primary btn-full" id="mr-submit-btn" style="margin-top:var(--space-2);">
+        Enregistrer et continuer
+      </button>
     </div>
   </div>
 
@@ -431,8 +467,11 @@
 
           if (result && result.success && result.data && result.data.user) {
             sessionStorage.setItem('zenco_user', JSON.stringify(result.data.user));
+            window._pendingMedical = result.data.pending_medical_reports || [];
             if (result.data.user.must_change_credentials) {
               openChangeCredentialsModal();
+            } else if (window._pendingMedical.length > 0) {
+              openMedicalReportsModal();
             } else {
               window.location.href = '/frontend/dashboard.html';
             }
@@ -492,7 +531,12 @@
           });
           if (result && result.success) {
             sessionStorage.setItem('zenco_user', JSON.stringify(result.data));
-            window.location.href = '/frontend/dashboard.html';
+            document.getElementById('cc-overlay').classList.remove('active');
+            if (window._pendingMedical && window._pendingMedical.length > 0) {
+              openMedicalReportsModal();
+            } else {
+              window.location.href = '/frontend/dashboard.html';
+            }
           } else {
             errEl.textContent = result.error || 'Erreur lors de la mise à jour.';
             errEl.style.display = 'block';
@@ -503,6 +547,75 @@
         } finally {
           submit.disabled = false;
           submit.textContent = 'Enregistrer et continuer';
+        }
+      });
+      // ── Medical reports modal ─────────────────────────────────────────────
+      function openMedicalReportsModal() {
+        const overlay  = document.getElementById('mr-overlay');
+        const listEl   = document.getElementById('mr-events-list');
+        const errEl    = document.getElementById('mr-error');
+        const events   = window._pendingMedical || [];
+
+        errEl.style.display = 'none';
+        listEl.innerHTML = events.map((ev, idx) => {
+          const d = new Date(ev.start_at);
+          const dateStr = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
+          return `<div class="mr-event-card">
+            <h4>${escapeHtmlMR(ev.title)}</h4>
+            <div class="mr-event-date">📅 ${dateStr}</div>
+            <label class="form-label required" for="mr-report-${idx}">Compte-rendu médical</label>
+            <textarea class="form-textarea" id="mr-report-${idx}" data-event-id="${ev.id}"
+              placeholder="Diagnostic, prescription, actes pratiqués, observations du praticien..."
+              rows="3" style="margin-top:4px;"></textarea>
+          </div>`;
+        }).join('');
+
+        overlay.classList.add('active');
+        listEl.querySelector('textarea')?.focus();
+      }
+
+      function escapeHtmlMR(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      document.getElementById('mr-submit-btn').addEventListener('click', async function () {
+        const errEl   = document.getElementById('mr-error');
+        const btn     = document.getElementById('mr-submit-btn');
+        const textareas = document.querySelectorAll('#mr-events-list textarea');
+        errEl.style.display = 'none';
+
+        // Validate all filled
+        for (const ta of textareas) {
+          if (!ta.value.trim()) {
+            errEl.textContent = 'Veuillez renseigner tous les comptes-rendus avant de continuer.';
+            errEl.style.display = 'block';
+            ta.focus();
+            return;
+          }
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Enregistrement…';
+
+        const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+
+        try {
+          for (const ta of textareas) {
+            const eventId = ta.dataset.eventId;
+            const report  = ta.value.trim();
+            // Create medical record for this event
+            await api.post('/medical-records', {
+              event_id:  eventId,
+              child_id:  (window._pendingMedical.find(e => e.id === eventId) || {}).child_id || null,
+              report:    report,
+            });
+          }
+          window.location.href = '/frontend/dashboard.html';
+        } catch (e) {
+          errEl.textContent = e.message || 'Erreur lors de l\'enregistrement.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Enregistrer et continuer';
         }
       });
     })();

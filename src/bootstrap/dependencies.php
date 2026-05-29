@@ -159,6 +159,16 @@ return function (ContainerBuilder $containerBuilder) {
         },
 
         // Auth handlers
+        \ZenCoParent\Application\Auth\LoginHandler::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Application\Auth\LoginHandler(
+                $c->get(UserRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(\ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface::class),
+                $c->get(\ZenCoParent\Infrastructure\Auth\JWTService::class),
+                $c->get(EventRepositoryInterface::class),
+            );
+        },
+
         RegisterHandler::class => function (ContainerInterface $c) {
             return new RegisterHandler(
                 $c->get(TenantRepositoryInterface::class),
