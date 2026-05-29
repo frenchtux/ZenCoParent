@@ -53,6 +53,9 @@ final class ThreadController
             participantIds: isset($body['participant_ids']) && is_array($body['participant_ids'])
                                 ? array_map('strval', $body['participant_ids'])
                                 : [],
+            subject:        isset($body['subject']) && $body['subject'] !== ''
+                                ? trim((string) $body['subject'])
+                                : null,
         );
 
         $threadDto = $this->createThreadHandler->handle($command);

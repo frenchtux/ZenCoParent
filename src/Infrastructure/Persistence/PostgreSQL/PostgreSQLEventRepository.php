@@ -130,4 +130,30 @@ final class PostgreSQLEventRepository extends AbstractRepository implements Even
         ]);
         return (int) $stmt->fetchColumn() > 0;
     }
+
+    public function findPastMedicalWithoutReport(
+        string             $tenantId,
+        string             $createdBy,
+        \DateTimeImmutable $now,
+    ): array {
+        $stmt = $this->pdo->prepare(
+            "SELECT e.* FROM events e
+             LEFT JOIN medical_records mr ON mr.event_id = e.id
+             WHERE e.tenant_id  = :tenant_id
+               AND e.created_by = :created_by
+               AND e.type       = 'medical'
+               AND e.start_at   < :now
+               AND mr.id IS NULL
+             ORDER BY e.start_at DESC"
+        );
+        $stmt->execute([
+            'tenant_id'  => $tenantId,
+            'created_by' => $createdBy,
+            'now'        => $now->format('Y-m-d H:i:s'),
+        ]);
+        return array_map(
+            static fn(array $row): Event => Event::fromArray($row),
+            $stmt->fetchAll()
+        );
+    }
 }

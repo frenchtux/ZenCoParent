@@ -5,6 +5,7 @@ namespace ZenCoParent\Application\Auth;
 
 use ZenCoParent\Application\User\UserDTO;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
+use ZenCoParent\Domain\Event\EventRepositoryInterface;
 use ZenCoParent\Domain\Shared\Exception\NotFoundException;
 use ZenCoParent\Domain\Shared\Exception\UnauthorizedException;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
@@ -18,6 +19,7 @@ final class LoginHandler
         private TenantRepositoryInterface       $tenantRepo,
         private RefreshTokenRepositoryInterface $refreshRepo,
         private JWTService                      $jwt,
+        private ?EventRepositoryInterface       $eventRepo = null,
     ) {}
 
     public function handle(LoginCommand $command): LoginResult
@@ -58,10 +60,27 @@ final class LoginHandler
             new \DateTimeImmutable("+{$expiry} seconds")
         );
 
+        // 8. Find past medical events without a report (only for parents)
+        $pendingMedical = [];
+        if ($this->eventRepo !== null && in_array($user->getRole()->value, ['parent', 'admin'], true)) {
+            $events = $this->eventRepo->findPastMedicalWithoutReport(
+                $tenant->getId(),
+                $user->getId(),
+                new \DateTimeImmutable(),
+            );
+            $pendingMedical = array_map(static fn($ev) => [
+                'id'       => $ev->getId(),
+                'title'    => $ev->getTitle(),
+                'start_at' => $ev->getStartAt()->format(\DateTimeInterface::ATOM),
+                'child_id' => $ev->getChildId(),
+            ], $events);
+        }
+
         return new LoginResult(
-            accessToken:  $accessToken,
-            refreshToken: $refreshToken,
-            user:         UserDTO::fromUser($user),
+            accessToken:           $accessToken,
+            refreshToken:          $refreshToken,
+            user:                  UserDTO::fromUser($user),
+            pendingMedicalReports: $pendingMedical,
         );
     }
 }

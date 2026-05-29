@@ -89,7 +89,7 @@ final class CreateThreadHandler
         // family type: no role restriction
 
         // 5. Create Thread aggregate
-        $thread = Thread::create($command->tenantId, $type, $participantIds);
+        $thread = Thread::create($command->tenantId, $type, $participantIds, $command->subject ?? null);
 
         // 6. Persist (repository is responsible for also persisting thread_participants)
         $this->threadRepo->save($thread);

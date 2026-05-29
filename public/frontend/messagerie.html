@@ -193,6 +193,10 @@
     <form id="thread-form">
       <div class="modal-body">
         <div class="form-group">
+          <label class="form-label" for="thread-subject">Sujet <span style="color:var(--color-text-muted);font-weight:400;">(optionnel)</span></label>
+          <input class="form-input" type="text" id="thread-subject" placeholder="Ex : Organisation des vacances d'été" maxlength="120" />
+        </div>
+        <div class="form-group">
           <label class="form-label required" for="thread-type">Type de conversation</label>
           <select class="form-select" id="thread-type" required>
             <option value="parents">Entre parents</option>

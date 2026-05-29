@@ -24,4 +24,17 @@ interface EventRepositoryInterface
     public function delete(string $id): void;
 
     public function existsForTenant(string $id, string $tenantId): bool;
+
+    /**
+     * Return past medical events that have no associated medical_record.
+     * "Past" = start_at is before $now.
+     * Only returns events created by $createdBy (the parent who booked).
+     *
+     * @return Event[]
+     */
+    public function findPastMedicalWithoutReport(
+        string             $tenantId,
+        string             $createdBy,
+        \DateTimeImmutable $now,
+    ): array;
 }

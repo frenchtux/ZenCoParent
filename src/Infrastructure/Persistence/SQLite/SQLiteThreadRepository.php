@@ -42,13 +42,14 @@ final class SQLiteThreadRepository extends AbstractRepository implements ThreadR
     {
         $now  = date('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO threads (id, tenant_id, type, created_at)
-             VALUES (:id, :tenant_id, :type, :created_at)'
+            'INSERT INTO threads (id, tenant_id, type, subject, created_at)
+             VALUES (:id, :tenant_id, :type, :subject, :created_at)'
         );
         $stmt->execute([
             'id'         => $thread->getId(),
             'tenant_id'  => $thread->getTenantId(),
             'type'       => $thread->getType()->value,
+            'subject'    => $thread->getSubject(),
             'created_at' => $now,
         ]);
 

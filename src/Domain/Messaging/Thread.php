@@ -10,16 +10,18 @@ final class Thread
         private readonly string             $id,
         private readonly string             $tenantId,
         private readonly ThreadType         $type,
+        private readonly ?string            $subject,
         private readonly \DateTimeImmutable $createdAt,
         private readonly array              $participantIds,
     ) {}
 
-    public static function create(string $tenantId, ThreadType $type, array $participantIds = []): self
+    public static function create(string $tenantId, ThreadType $type, array $participantIds = [], ?string $subject = null): self
     {
         return new self(
             id:             \Ramsey\Uuid\Uuid::uuid4()->toString(),
             tenantId:       $tenantId,
             type:           $type,
+            subject:        $subject !== '' ? $subject : null,
             createdAt:      new \DateTimeImmutable(),
             participantIds: $participantIds,
         );
@@ -31,35 +33,18 @@ final class Thread
             id:             $data['id'],
             tenantId:       $data['tenant_id'],
             type:           ThreadType::from($data['type']),
+            subject:        $data['subject'] ?? null,
             createdAt:      new \DateTimeImmutable($data['created_at']),
             participantIds: $data['participant_ids'] ?? [],
         );
     }
 
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function getTenantId(): string
-    {
-        return $this->tenantId;
-    }
-
-    public function getType(): ThreadType
-    {
-        return $this->type;
-    }
-
-    public function getCreatedAt(): \DateTimeImmutable
-    {
-        return $this->createdAt;
-    }
-
-    public function getParticipantIds(): array
-    {
-        return $this->participantIds;
-    }
+    public function getId(): string             { return $this->id; }
+    public function getTenantId(): string       { return $this->tenantId; }
+    public function getType(): ThreadType       { return $this->type; }
+    public function getSubject(): ?string       { return $this->subject; }
+    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function getParticipantIds(): array  { return $this->participantIds; }
 
     public function withParticipantAdded(string $userId): self
     {
@@ -71,6 +56,7 @@ final class Thread
             id:             $this->id,
             tenantId:       $this->tenantId,
             type:           $this->type,
+            subject:        $this->subject,
             createdAt:      $this->createdAt,
             participantIds: [...$this->participantIds, $userId],
         );
@@ -82,6 +68,7 @@ final class Thread
             'id'              => $this->id,
             'tenant_id'       => $this->tenantId,
             'type'            => $this->type->value,
+            'subject'         => $this->subject,
             'created_at'      => $this->createdAt->format(\DateTimeInterface::ATOM),
             'participant_ids' => $this->participantIds,
         ];

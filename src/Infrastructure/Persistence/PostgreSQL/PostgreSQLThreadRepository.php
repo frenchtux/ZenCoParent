@@ -73,13 +73,14 @@ final class PostgreSQLThreadRepository extends AbstractRepository implements Thr
     public function save(Thread $thread): void
     {
         $stmt = $this->pdo->prepare(
-            'INSERT INTO threads (id, tenant_id, type, created_at)
-             VALUES (:id, :tenant_id, :type, :created_at)'
+            'INSERT INTO threads (id, tenant_id, type, subject, created_at)
+             VALUES (:id, :tenant_id, :type, :subject, :created_at)'
         );
         $stmt->execute([
             'id'         => $thread->getId(),
             'tenant_id'  => $thread->getTenantId(),
             'type'       => $thread->getType()->value,
+            'subject'    => $thread->getSubject(),
             'created_at' => $thread->getCreatedAt()->format('Y-m-d H:i:s'),
         ]);
 

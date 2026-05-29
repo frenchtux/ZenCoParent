@@ -224,7 +224,10 @@ final class AuthController
         $csrfToken  = bin2hex(random_bytes(32));
         $csrfCookie = "csrf_token={$csrfToken}; Path=/; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
 
-        return ApiResponse::success($response, ['user' => $result->user->toArray()])
+        return ApiResponse::success($response, [
+            'user'                   => $result->user->toArray(),
+            'pending_medical_reports'=> $result->pendingMedicalReports,
+        ])
             ->withAddedHeader('Set-Cookie', $jwtCookie)
             ->withAddedHeader('Set-Cookie', $rfCookie)
             ->withAddedHeader('Set-Cookie', $csrfCookie);

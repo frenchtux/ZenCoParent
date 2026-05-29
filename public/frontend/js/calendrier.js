@@ -123,10 +123,11 @@
       numEl.textContent = dayNum;
       cell.appendChild(numEl);
 
-      // Events for this day
+      // Events for this day — include multi-day events spanning this date
       const dayEvents = allEvents.filter(ev => {
-        const evDate = (ev.start_at || ev.start_date || ev.date || '').slice(0, 10);
-        return evDate === dateISO;
+        const start = (ev.start_at || ev.start_date || ev.date || '').slice(0, 10);
+        const end   = (ev.end_at || start).slice(0, 10);
+        return dateISO >= start && dateISO <= end;
       });
 
       if (dayEvents.length > 0) {
@@ -162,9 +163,11 @@
 
     // Auto-show today's panel
     if (!selectedDay) {
-      const todayEvents = allEvents.filter(ev =>
-        (ev.start_at || ev.start_date || ev.date || '').slice(0, 10) === todayStr
-      );
+      const todayEvents = allEvents.filter(ev => {
+        const start = (ev.start_at || ev.start_date || ev.date || '').slice(0, 10);
+        const end   = (ev.end_at || start).slice(0, 10);
+        return todayStr >= start && todayStr <= end;
+      });
       renderDayPanel(todayStr, todayEvents);
     }
   }
@@ -210,6 +213,8 @@
               <span class="badge event-badge-${typeKey}">${escapeHtml(eventTypeLabel(typeKey))}</span>
               ${timeStr}
               ${ev.description ? `<div style="margin-top:4px;font-size:var(--text-xs);color:var(--color-text-muted)">${escapeHtml(ev.description)}</div>` : ''}
+              ${typeKey === 'medical' && !ev.report ? `<div style="margin-top:4px;"><button class="btn btn-outline btn-sm" style="font-size:var(--text-xs);padding:2px 8px;" onclick="openEditEvent(${JSON.stringify(ev).replace(/"/g,'&quot;')})">📋 Renseigner le compte-rendu</button></div>` : ''}
+              ${typeKey === 'medical' && ev.report ? `<div style="margin-top:4px;font-size:var(--text-xs);color:var(--color-text-muted);font-style:italic;">"${escapeHtml(ev.report.slice(0,80))}${ev.report.length > 80 ? '…' : ''}"</div>` : ''}
             </div>
           </div>
           <div class="event-list-item-actions">
@@ -335,9 +340,11 @@
       await loadEvents();
       renderCalendar();
       if (selectedDay) {
-        const dayEvs = allEvents.filter(ev =>
-          (ev.start_at || ev.start_date || ev.date || '').slice(0, 10) === selectedDay
-        );
+        const dayEvs = allEvents.filter(ev => {
+          const start = (ev.start_at || ev.start_date || ev.date || '').slice(0, 10);
+          const end   = (ev.end_at || start).slice(0, 10);
+          return selectedDay >= start && selectedDay <= end;
+        });
         renderDayPanel(selectedDay, dayEvs);
       }
     } catch (err) {
@@ -367,8 +374,8 @@
         endAt = startDate.toISOString().slice(0, 19);
       }
     }
-    if (startAt && endAt && endAt <= startAt) {
-      toast('La date de fin doit être postérieure à la date de début.', 'warning');
+    if (startAt && endAt && endAt < startAt) {
+      toast('La date de fin ne peut pas être antérieure à la date de début.', 'warning');
       setLoading(btn, false);
       return;
     }
@@ -409,9 +416,11 @@
       await loadEvents();
       renderCalendar();
       if (selectedDay) {
-        const dayEvs = allEvents.filter(ev =>
-          (ev.start_at || ev.start_date || ev.date || '').slice(0, 10) === selectedDay
-        );
+        const dayEvs = allEvents.filter(ev => {
+          const start = (ev.start_at || ev.start_date || ev.date || '').slice(0, 10);
+          const end   = (ev.end_at || start).slice(0, 10);
+          return selectedDay >= start && selectedDay <= end;
+        });
         renderDayPanel(selectedDay, dayEvs);
       }
     } catch (err) {
