@@ -14,4 +14,6 @@ interface MedicalRecordRepositoryInterface
     public function findByEventId(string $eventId): ?MedicalRecord;
 
     public function save(MedicalRecord $record): void;
+
+    public function delete(string $id): void;
 }

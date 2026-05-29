@@ -234,6 +234,9 @@
   .mr-event-card h4 { font-size: var(--text-base); font-weight: 600; margin: 0 0 var(--space-1); }
   .mr-event-date { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-3); }
   .mr-error { color: var(--color-error, #dc2626); font-size: var(--text-sm); margin-bottom: var(--space-3); display: none; }
+  .mr-file-label { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-3); display: block; }
+  .mr-file-input { font-size: var(--text-sm); margin-top: var(--space-1); width: 100%; }
+  .mr-file-list  { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-1); min-height: 16px; }
   </style>
 </head>
 <body>
@@ -567,8 +570,27 @@
             <textarea class="form-textarea" id="mr-report-${idx}" data-event-id="${ev.id}"
               placeholder="Diagnostic, prescription, actes pratiqués, observations du praticien..."
               rows="3" style="margin-top:4px;"></textarea>
+            <label class="mr-file-label" for="mr-files-${idx}">
+              Pièces jointes (optionnel — ordonnance, radio, compte-rendu scanné…)
+            </label>
+            <input type="file" class="mr-file-input" id="mr-files-${idx}"
+              data-event-idx="${idx}" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx" />
+            <div class="mr-file-list" id="mr-file-list-${idx}"></div>
           </div>`;
         }).join('');
+
+        // Show selected file names
+        listEl.querySelectorAll('.mr-file-input').forEach(input => {
+          input.addEventListener('change', function () {
+            const idx  = this.dataset.eventIdx;
+            const list = document.getElementById(`mr-file-list-${idx}`);
+            if (list) {
+              list.textContent = this.files.length
+                ? Array.from(this.files).map(f => f.name).join(', ')
+                : '';
+            }
+          });
+        });
 
         overlay.classList.add('active');
         listEl.querySelector('textarea')?.focus();
@@ -600,15 +622,39 @@
         const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
 
         try {
-          for (const ta of textareas) {
+          for (let i = 0; i < textareas.length; i++) {
+            const ta      = textareas[i];
             const eventId = ta.dataset.eventId;
             const report  = ta.value.trim();
-            // Create medical record for this event
-            await api.post('/medical-records', {
-              event_id:  eventId,
-              child_id:  (window._pendingMedical.find(e => e.id === eventId) || {}).child_id || null,
-              report:    report,
+
+            // Create medical record — response contains the new record id
+            const created = await api.post('/medical-records', {
+              event_id: eventId,
+              child_id: (window._pendingMedical.find(e => e.id === eventId) || {}).child_id || null,
+              report,
             });
+
+            // Upload attachments if any were selected
+            const fileInput = document.getElementById(`mr-files-${i}`);
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+              const recordId = created && created.data && created.data.id;
+              if (recordId) {
+                for (const file of fileInput.files) {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const resp = await fetch(`/medical-records/${recordId}/attachments`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+                    body: fd,
+                  });
+                  if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || `Erreur upload (${resp.status})`);
+                  }
+                }
+              }
+            }
           }
           window.location.href = '/frontend/dashboard.html';
         } catch (e) {

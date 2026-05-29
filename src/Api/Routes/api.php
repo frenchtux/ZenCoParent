@@ -174,6 +174,8 @@ return function (App $app): void {
         // Medical records — standalone creation (module: medical)
         // Medical record creation: no module gate — allows post-login CR entry
         $outer->post('/medical-records', [MedicalRecordController::class, 'create']);
+        $outer->delete('/medical-records/{id}', [MedicalRecordController::class, 'delete'])
+              ->add($moduleMiddleware('medical'));
 
         // Medical attachments (module: medical)
         $outer->group('/medical-records/{id}/attachments', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
