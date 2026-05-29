@@ -57,7 +57,8 @@ final class RegisterHandler
         $tenant = Tenant::create(trim($command->familyName), $slug);
         $this->tenantRepo->save($tenant);
 
-        // Create admin user for the family
+        // Create the registering user as parent (not admin)
+        // Admins are provisioned separately by a super-admin or via the seeder.
         $passwordHash = password_hash($command->password, PASSWORD_BCRYPT);
         $user = User::create(
             tenantId:     $tenant->getId(),
@@ -65,7 +66,7 @@ final class RegisterHandler
             passwordHash: $passwordHash,
             firstName:    $command->firstName,
             lastName:     $command->lastName,
-            role:         UserRole::Admin,
+            role:         UserRole::Parent,
         );
         $this->userRepo->save($user);
 
