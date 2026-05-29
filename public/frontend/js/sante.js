@@ -82,7 +82,7 @@
 
       const results = await Promise.all(
         childIds.map(id =>
-          api.get(`/medical-records/${id}/history`).catch(() => null)
+          api.get(`/children/${id}/medical-history`).catch(() => null)
         )
       );
 
