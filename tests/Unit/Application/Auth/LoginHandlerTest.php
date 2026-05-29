@@ -125,12 +125,13 @@ final class LoginHandlerTest extends TestCase
     {
         $now = new \DateTimeImmutable();
         return new Tenant(
-            id:        $this->tenantId,
-            name:      'Dupont Family',
-            slug:      'dupont-family',
-            isActive:  true,
-            createdAt: $now,
-            updatedAt: $now,
+            id:              $this->tenantId,
+            name:            'Dupont Family',
+            slug:            'dupont-family',
+            isActive:        true,
+            modulesOverride: null,
+            createdAt:       $now,
+            updatedAt:       $now,
         );
     }
 }

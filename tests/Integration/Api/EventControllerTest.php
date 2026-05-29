@@ -328,4 +328,69 @@ final class EventControllerTest extends IntegrationTestCase
     {
         $this->assertSame(401, $this->makeRequest('GET', '/events')->getStatusCode());
     }
+
+    // ── end_at validation (end must be strictly after start) ──────────────────
+
+    public function test_create_rejects_end_at_equal_to_start_at(): void
+    {
+        $response = $this->makeRequest('POST', '/events', body: [
+            'title'    => 'Zero duration',
+            'type'     => 'activite',
+            'start_at' => '2026-06-01T10:00:00+00:00',
+            'end_at'   => '2026-06-01T10:00:00+00:00',
+        ], cookies: ['jwt' => $this->jwtToken]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $body = $this->decodeJson($response);
+        $this->assertArrayHasKey('end_at', $body['errors']);
+    }
+
+    public function test_create_rejects_end_at_before_start_at(): void
+    {
+        $response = $this->makeRequest('POST', '/events', body: [
+            'title'    => 'Backwards',
+            'type'     => 'activite',
+            'start_at' => '2026-06-01T12:00:00+00:00',
+            'end_at'   => '2026-06-01T10:00:00+00:00',
+        ], cookies: ['jwt' => $this->jwtToken]);
+
+        $this->assertSame(422, $response->getStatusCode());
+    }
+
+    public function test_create_accepts_multiday_event(): void
+    {
+        $response = $this->makeRequest('POST', '/events', body: [
+            'title'    => 'Vacances Juillet',
+            'type'     => 'vacances',
+            'start_at' => '2026-07-01T00:00:00+00:00',
+            'end_at'   => '2026-07-31T23:59:00+00:00',
+            'all_day'  => true,
+        ], cookies: ['jwt' => $this->jwtToken]);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $body = $this->decodeJson($response);
+        $this->assertStringContainsString('2026-07-31', $body['data']['end_at']);
+    }
+
+    public function test_update_rejects_end_at_before_start_at(): void
+    {
+        // Create valid event first
+        $created = $this->decodeJson($this->makeRequest('POST', '/events', body: [
+            'title'    => 'Valid event',
+            'type'     => 'activite',
+            'start_at' => '2026-06-01T09:00:00+00:00',
+            'end_at'   => '2026-06-01T10:00:00+00:00',
+        ], cookies: ['jwt' => $this->jwtToken]));
+        $id = $created['data']['id'];
+
+        // Try to update with invalid dates
+        $response = $this->makeRequest('PUT', "/events/{$id}", body: [
+            'title'    => 'Invalid update',
+            'type'     => 'activite',
+            'start_at' => '2026-06-01T10:00:00+00:00',
+            'end_at'   => '2026-06-01T09:00:00+00:00',
+        ], cookies: ['jwt' => $this->jwtToken]);
+
+        $this->assertSame(422, $response->getStatusCode());
+    }
 }
