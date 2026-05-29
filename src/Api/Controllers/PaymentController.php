@@ -30,6 +30,17 @@ final class PaymentController
         return ApiResponse::success($response, $result);
     }
 
+    /** POST /payments/checkout/license — admin buys the 150€ SaaS tenant license */
+    public function checkoutLicense(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        $tenantId = (string) $request->getAttribute('tenantId');
+        $result   = $this->stripeService->createSaasLicenseSession($tenantId);
+        return ApiResponse::success($response, $result);
+    }
+
     /** POST /payments/checkout/subscription — authenticated family user */
     public function checkoutSubscription(
         ServerRequestInterface $request,

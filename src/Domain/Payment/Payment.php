@@ -7,6 +7,7 @@ final class Payment
 {
     public const TYPE_INSTALLATION_KEY = 'installation_key';
     public const TYPE_SUBSCRIPTION     = 'subscription';
+    public const TYPE_SAAS_LICENSE     = 'saas_license';
 
     public const STATUS_PENDING   = 'pending';
     public const STATUS_SUCCEEDED = 'succeeded';

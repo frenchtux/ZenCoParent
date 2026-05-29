@@ -93,6 +93,10 @@ return function (App $app): void {
     $app->post('/payments/webhook',                    [PaymentController::class, 'webhook']);
     // Installation key checkout: public (no account needed to buy a key)
     $app->post('/payments/checkout/installation-key',  [PaymentController::class, 'checkoutInstallationKey']);
+    // SaaS license checkout: public pre-auth (admin redirected after Stripe)
+    $app->post('/payments/checkout/license',           [PaymentController::class, 'checkoutLicense'])
+        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
+        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
 
     // ── Invitation public routes (no auth) ───────────────────────────────────
     $app->get('/invitations/{token}',         [InvitationController::class, 'show']);
@@ -129,6 +133,8 @@ return function (App $app): void {
             $g->get('/settings/mail',            [SettingsController::class, 'getMail']);
             $g->put('/settings/mail',            [SettingsController::class, 'putMail']);
             $g->post('/settings/mail/test',      [SettingsController::class, 'testMail']);
+            // SaaS tenant license status
+            $g->get('/settings/saas-license',    [SettingsController::class, 'licenseStatus']);
         })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management

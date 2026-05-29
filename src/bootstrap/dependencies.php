@@ -407,6 +407,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(UserRepositoryInterface::class),
                 $c->get(MailerInterface::class),
                 $c->get(LoggerInterface::class),
+                $c->get(TenantSettingsService::class),
             );
         },
 

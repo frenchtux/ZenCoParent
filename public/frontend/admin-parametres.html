@@ -83,6 +83,39 @@
         </div>
       </div>
 
+      <!-- SaaS License block (saas mode only) -->
+      <div class="card" id="license-card" style="max-width:640px;margin-top:var(--space-6);display:none;">
+        <div class="card-header">
+          <h2 class="card-title">Licence SaaS</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Accès permanent à la plateforme — paiement unique de 150 €.
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="license-status-block">
+            <div id="license-loading" style="color:var(--color-text-muted);font-size:var(--text-sm)">Chargement…</div>
+            <div id="license-active-block" style="display:none;">
+              <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4);background:var(--color-success-bg,#d1fae5);border-radius:var(--radius-md);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--color-success,#065f46)" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div>
+                  <div style="font-weight:600;color:var(--color-success,#065f46)">Licence active</div>
+                  <div id="license-paid-date" style="font-size:var(--text-xs);color:var(--color-success,#065f46)"></div>
+                </div>
+              </div>
+            </div>
+            <div id="license-inactive-block" style="display:none;">
+              <p style="margin:0 0 var(--space-4);font-size:var(--text-sm);color:var(--color-text-muted)">
+                Aucune licence active pour cet espace. Achetez une licence permanente pour débloquer l'accès complet.
+              </p>
+              <button type="button" class="btn btn-primary" id="buy-license-btn">
+                Acheter la licence — 150 €
+              </button>
+              <p id="license-checkout-error" style="display:none;margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-error,#dc2626);"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /page-body -->
   </div><!-- /main-content -->
 </div><!-- /app-shell -->
@@ -169,6 +202,48 @@
       btn.disabled = false; btn.textContent = 'Enregistrer';
     }
   });
+
+  // ── SaaS license block ───────────────────────────────────────────────────
+  (async () => {
+    try {
+      const modeRes = await api.get('/mode');
+      if (!modeRes || !modeRes.data || modeRes.data.mode !== 'saas') return;
+
+      const licCard = document.getElementById('license-card');
+      licCard.style.display = '';
+
+      const r = await api.get('/admin/settings/saas-license');
+      document.getElementById('license-loading').style.display = 'none';
+
+      if (r && r.data && r.data.active) {
+        document.getElementById('license-active-block').style.display = '';
+        const paidDate = r.data.paid_at ? new Date(r.data.paid_at).toLocaleDateString('fr-FR') : '';
+        if (paidDate) document.getElementById('license-paid-date').textContent = 'Activée le ' + paidDate;
+      } else {
+        document.getElementById('license-inactive-block').style.display = '';
+        document.getElementById('buy-license-btn').addEventListener('click', async () => {
+          const btn = document.getElementById('buy-license-btn');
+          const errEl = document.getElementById('license-checkout-error');
+          btn.disabled = true; btn.textContent = 'Redirection…';
+          errEl.style.display = 'none';
+          try {
+            const res = await api.post('/payments/checkout/license', {});
+            if (res && res.data && res.data.url) {
+              window.location.href = res.data.url;
+            } else {
+              throw new Error('URL de paiement manquante.');
+            }
+          } catch (e) {
+            errEl.textContent = e.message || 'Erreur lors de la création du paiement.';
+            errEl.style.display = '';
+            btn.disabled = false; btn.textContent = 'Acheter la licence — 150 €';
+          }
+        });
+      }
+    } catch {
+      document.getElementById('license-loading').style.display = 'none';
+    }
+  })();
 
   // ── Test modal ────────────────────────────────────────────────────────────
   const overlay = document.getElementById('test-overlay');

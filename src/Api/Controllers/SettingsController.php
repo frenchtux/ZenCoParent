@@ -15,6 +15,20 @@ final class SettingsController
         private readonly TenantSettingsService $settings,
     ) {}
 
+    /** GET /admin/license/status — check tenant SaaS license */
+    public function licenseStatus(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $tenantId = (string) $request->getAttribute('tenantId');
+        $active   = $this->settings->get($tenantId, 'saas_license_active') === '1';
+        $paidAt   = $this->settings->get($tenantId, 'saas_license_paid_at');
+        return ApiResponse::success($response, [
+            'active'   => $active,
+            'paid_at'  => $paidAt,
+            'price'    => 150.00,
+            'currency' => 'EUR',
+        ]);
+    }
+
     /** GET /admin/settings/mail */
     public function getMail(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
