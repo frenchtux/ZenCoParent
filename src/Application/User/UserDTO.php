@@ -17,39 +17,42 @@ final readonly class UserDTO
         public bool    $isActive,
         public ?string $emailVerifiedAt,
         public string  $createdAt,
+        public bool    $mustChangeCredentials = false,
     ) {}
 
     public static function fromUser(\ZenCoParent\Domain\User\User $user): self
     {
         return new self(
-            id:              $user->getId(),
-            tenantId:        $user->getTenantId(),
-            email:           $user->getEmail(),
-            firstName:       $user->getFirstName(),
-            lastName:        $user->getLastName(),
-            phone:           $user->getPhone(),
-            address:         $user->getAddress(),
-            role:            $user->getRole()->value,
-            isActive:        $user->isActive(),
-            emailVerifiedAt: $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
-            createdAt:       $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            id:                    $user->getId(),
+            tenantId:              $user->getTenantId(),
+            email:                 $user->getEmail(),
+            firstName:             $user->getFirstName(),
+            lastName:              $user->getLastName(),
+            phone:                 $user->getPhone(),
+            address:               $user->getAddress(),
+            role:                  $user->getRole()->value,
+            isActive:              $user->isActive(),
+            emailVerifiedAt:       $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
+            createdAt:             $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            mustChangeCredentials: $user->mustChangeCredentials(),
         );
     }
 
     public function toArray(): array
     {
         return [
-            'id'                => $this->id,
-            'tenant_id'         => $this->tenantId,
-            'email'             => $this->email,
-            'first_name'        => $this->firstName,
-            'last_name'         => $this->lastName,
-            'phone'             => $this->phone,
-            'address'           => $this->address,
-            'role'              => $this->role,
-            'is_active'         => $this->isActive,
-            'email_verified_at' => $this->emailVerifiedAt,
-            'created_at'        => $this->createdAt,
+            'id'                      => $this->id,
+            'tenant_id'               => $this->tenantId,
+            'email'                   => $this->email,
+            'first_name'              => $this->firstName,
+            'last_name'               => $this->lastName,
+            'phone'                   => $this->phone,
+            'address'                 => $this->address,
+            'role'                    => $this->role,
+            'is_active'               => $this->isActive,
+            'email_verified_at'       => $this->emailVerifiedAt,
+            'created_at'              => $this->createdAt,
+            'must_change_credentials' => $this->mustChangeCredentials,
         ];
     }
 }

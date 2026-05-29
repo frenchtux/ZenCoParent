@@ -6,6 +6,8 @@ namespace ZenCoParent\Api\Controllers;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use ZenCoParent\Api\Response\ApiResponse;
+use ZenCoParent\Application\User\ChangeCredentialsCommand;
+use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordCommand;
 use ZenCoParent\Application\User\ChangePasswordHandler;
 use ZenCoParent\Application\User\CreateUserCommand;
@@ -20,11 +22,12 @@ use ZenCoParent\Domain\Shared\Exception\UnauthorizedException;
 final class UserController
 {
     public function __construct(
-        private ListUsersHandler     $listHandler,
-        private CreateUserHandler    $createHandler,
-        private GetUserHandler       $getHandler,
-        private UpdateUserHandler    $updateHandler,
-        private ChangePasswordHandler $changePasswordHandler,
+        private ListUsersHandler        $listHandler,
+        private CreateUserHandler       $createHandler,
+        private GetUserHandler          $getHandler,
+        private UpdateUserHandler       $updateHandler,
+        private ChangePasswordHandler   $changePasswordHandler,
+        private ChangeCredentialsHandler $changeCredentialsHandler,
     ) {}
 
     /** GET /users */
@@ -135,6 +138,40 @@ final class UserController
             return ApiResponse::success($response, $dto->toArray());
         } catch (NotFoundException $e) {
             return ApiResponse::error($response, $e->getMessage(), 404);
+        }
+    }
+
+    /** PATCH /users/me/credentials — first-login forced change */
+    public function changeCredentials(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $tenantId = (string) $request->getAttribute('tenantId');
+        $userId   = (string) $request->getAttribute('userId');
+        $body     = (array) $request->getParsedBody();
+
+        $required = ['current_password', 'new_email', 'new_password'];
+        foreach ($required as $field) {
+            if (empty($body[$field])) {
+                return ApiResponse::error($response, "Le champ '{$field}' est requis.", 400);
+            }
+        }
+
+        $command = new ChangeCredentialsCommand(
+            userId:          $userId,
+            tenantId:        $tenantId,
+            newEmail:        trim((string) $body['new_email']),
+            newPassword:     (string) $body['new_password'],
+            currentPassword: (string) $body['current_password'],
+        );
+
+        try {
+            $dto = $this->changeCredentialsHandler->handle($command);
+            return ApiResponse::success($response, $dto->toArray());
+        } catch (NotFoundException $e) {
+            return ApiResponse::error($response, $e->getMessage(), 404);
+        } catch (\ZenCoParent\Domain\Shared\Exception\UnauthorizedException $e) {
+            return ApiResponse::error($response, $e->getMessage(), 401);
+        } catch (\InvalidArgumentException $e) {
+            return ApiResponse::error($response, $e->getMessage(), 400);
         }
     }
 

@@ -125,19 +125,100 @@
       records.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:var(--space-3);">
           ${items.map(rec => `
-            <div class="medical-record-item">
+            <div class="medical-record-item" id="rec-${rec.id}">
               <div class="medical-record-date">${formatDate(rec.recorded_at || rec.date || rec.created_at || '')}</div>
-              <div class="medical-record-content">
+              <div class="medical-record-content" style="flex:1;">
                 <div class="medical-record-desc">${escapeHtml(rec.report || rec.description || rec.notes || '')}</div>
                 ${rec.practitioner || rec.doctor ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Dr ${escapeHtml(rec.practitioner || rec.doctor)}</div>` : ''}
+                <div id="attachments-${rec.id}" style="margin-top:var(--space-3);"></div>
+                <label style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-2);cursor:pointer;font-size:var(--text-xs);color:var(--color-primary);">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                  Ajouter une pièce jointe
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx" style="display:none;" data-record-id="${rec.id}" class="attachment-input" />
+                </label>
               </div>
             </div>
           `).join('')}
         </div>
       `;
+
+      // Load attachments and bind upload inputs
+      items.forEach(rec => {
+        loadAttachments(rec.id);
+        const input = records.querySelector(`input.attachment-input[data-record-id="${rec.id}"]`);
+        if (input) {
+          input.addEventListener('change', () => uploadAttachment(rec.id, input));
+        }
+      });
     } catch (err) {
       loading.style.display = 'none';
       records.innerHTML = '<p style="font-size:var(--text-sm);color:var(--color-error);">Erreur lors du chargement.</p>';
+    }
+  };
+
+  /* ── Medical attachments ──────────────────────────────────── */
+
+  async function loadAttachments(recordId) {
+    const container = document.getElementById(`attachments-${recordId}`);
+    if (!container) return;
+    try {
+      const res = await api.get(`/medical-records/${recordId}/attachments`);
+      const attachments = (res && res.data) ? res.data : [];
+      if (!attachments.length) { container.innerHTML = ''; return; }
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${attachments.map(a => `
+            <div style="display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+              <a href="${escapeHtml(a.download_url)}" target="_blank" style="color:var(--color-primary);text-decoration:none;">${escapeHtml(a.filename)}</a>
+              <span style="color:var(--color-text-muted);">(${(a.size_bytes / 1024).toFixed(0)} Ko)</span>
+              <button type="button" onclick="deleteAttachment('${a.id}', '${recordId}')" title="Supprimer" style="background:none;border:none;cursor:pointer;color:var(--color-error,#dc2626);padding:0;line-height:1;">✕</button>
+            </div>
+          `).join('')}
+        </div>`;
+    } catch { /* module not enabled or not loaded */ }
+  }
+
+  async function uploadAttachment(recordId, inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+    inputEl.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+      const res = await fetch(`/medical-records/${recordId}/attachments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast('Pièce jointe ajoutée.', 'success');
+        loadAttachments(recordId);
+      } else {
+        toast(json.error || 'Erreur lors de l\'envoi.', 'error');
+      }
+    } catch {
+      toast('Erreur réseau lors de l\'envoi.', 'error');
+    } finally {
+      inputEl.value = '';
+      inputEl.disabled = false;
+    }
+  }
+
+  global.deleteAttachment = async function (attachmentId, recordId) {
+    if (!confirm('Supprimer cette pièce jointe ?')) return;
+    const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+    try {
+      await api.del(`/medical-records/${recordId}/attachments/${attachmentId}`);
+      toast('Pièce jointe supprimée.', 'success');
+      loadAttachments(recordId);
+    } catch (e) {
+      toast(e.message || 'Erreur lors de la suppression.', 'error');
     }
   };
 

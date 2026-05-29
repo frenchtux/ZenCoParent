@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ZenCoParent\Application\Payment;
 
 use Psr\Log\LoggerInterface;
+use ZenCoParent\Application\Settings\TenantSettingsService;
 use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Domain\Notification\MailerInterface;
 use ZenCoParent\Domain\Payment\Payment;
@@ -22,6 +23,7 @@ final class StripeWebhookHandler
         private readonly UserRepositoryInterface         $userRepo,
         private readonly MailerInterface                 $mailer,
         private readonly LoggerInterface                 $logger,
+        private readonly ?TenantSettingsService          $tenantSettings = null,
     ) {}
 
     public function handleCheckoutCompleted(object $session): void
@@ -38,6 +40,25 @@ final class StripeWebhookHandler
                     new \DateTimeImmutable(),
                 );
             }
+            return;
+        }
+
+        if ($type === Payment::TYPE_SAAS_LICENSE) {
+            $tenantId = $session->metadata->tenant_id ?? null;
+            $payment  = $this->paymentRepo->findByStripeSessionId($session->id);
+            if ($payment) {
+                $this->paymentRepo->updateStatus(
+                    $payment->getId(),
+                    Payment::STATUS_SUCCEEDED,
+                    $session->payment_intent ?? null,
+                    new \DateTimeImmutable(),
+                );
+            }
+            if ($tenantId !== null && $this->tenantSettings !== null) {
+                $this->tenantSettings->set($tenantId, 'saas_license_active', '1');
+                $this->tenantSettings->set($tenantId, 'saas_license_paid_at', (new \DateTimeImmutable())->format('Y-m-d H:i:s'));
+            }
+            $this->logger->info('SaaS license activated via Stripe', ['tenant_id' => $tenantId]);
             return;
         }
 

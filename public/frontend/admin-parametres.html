@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Paramètres</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <a href="/frontend/admin.html" class="btn btn-ghost btn-sm" style="margin-bottom:var(--space-2);">← Retour</a>
+        <h1 class="page-title">Paramètres</h1>
+        <p class="page-subtitle">Configuration de votre espace famille</p>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- Mail config -->
+      <div class="card" style="max-width:640px;">
+        <div class="card-header">
+          <h2 class="card-title">Configuration e-mail (SMTP)</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Paramètres utilisés pour l'envoi des notifications et invitations.
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="mail-alert" style="display:none;margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);font-size:var(--text-sm);"></div>
+
+          <form id="mail-form" novalidate>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="mail-host">Serveur SMTP (host)</label>
+                <input class="form-input" type="text" id="mail-host" placeholder="smtp.example.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mail-port">Port</label>
+                <input class="form-input" type="number" id="mail-port" placeholder="587" min="1" max="65535" />
+              </div>
+            </div>
+
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="mail-username">Nom d'utilisateur</label>
+                <input class="form-input" type="text" id="mail-username" placeholder="user@example.com" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mail-password">Mot de passe</label>
+                <input class="form-input" type="password" id="mail-password" placeholder="Laisser vide pour conserver" autocomplete="new-password" />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:var(--space-4);">
+              <label class="form-label" for="mail-encryption">Chiffrement</label>
+              <select class="form-select" id="mail-encryption">
+                <option value="tls">TLS (STARTTLS — port 587)</option>
+                <option value="ssl">SSL (port 465)</option>
+                <option value="none">Aucun (non recommandé)</option>
+              </select>
+            </div>
+
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-6);">
+              <div class="form-group">
+                <label class="form-label" for="mail-from-address">Adresse expéditeur</label>
+                <input class="form-input" type="email" id="mail-from-address" placeholder="noreply@example.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mail-from-name">Nom expéditeur</label>
+                <input class="form-input" type="text" id="mail-from-name" placeholder="ZenCoParent" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;">
+              <button type="submit" class="btn btn-primary" id="save-btn">Enregistrer</button>
+              <button type="button" class="btn btn-secondary" id="test-btn">Envoyer un test…</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- SaaS License block (saas mode only) -->
+      <div class="card" id="license-card" style="max-width:640px;margin-top:var(--space-6);display:none;">
+        <div class="card-header">
+          <h2 class="card-title">Licence SaaS</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Accès permanent à la plateforme — paiement unique de 150 €.
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="license-status-block">
+            <div id="license-loading" style="color:var(--color-text-muted);font-size:var(--text-sm)">Chargement…</div>
+            <div id="license-active-block" style="display:none;">
+              <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4);background:var(--color-success-bg,#d1fae5);border-radius:var(--radius-md);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--color-success,#065f46)" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div>
+                  <div style="font-weight:600;color:var(--color-success,#065f46)">Licence active</div>
+                  <div id="license-paid-date" style="font-size:var(--text-xs);color:var(--color-success,#065f46)"></div>
+                </div>
+              </div>
+            </div>
+            <div id="license-inactive-block" style="display:none;">
+              <p style="margin:0 0 var(--space-4);font-size:var(--text-sm);color:var(--color-text-muted)">
+                Aucune licence active pour cet espace. Achetez une licence permanente pour débloquer l'accès complet.
+              </p>
+              <button type="button" class="btn btn-primary" id="buy-license-btn">
+                Acheter la licence — 150 €
+              </button>
+              <p id="license-checkout-error" style="display:none;margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-error,#dc2626);"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- Test mail modal -->
+<div id="test-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:var(--color-surface);border-radius:var(--radius-xl);padding:var(--space-8);width:100%;max-width:400px;box-shadow:var(--shadow-xl);">
+    <h3 style="margin:0 0 var(--space-4);">Envoyer un e-mail de test</h3>
+    <div id="test-error" style="display:none;color:var(--color-error,#dc2626);font-size:var(--text-sm);margin-bottom:var(--space-3);"></div>
+    <div class="form-group" style="margin-bottom:var(--space-4);">
+      <label class="form-label required" for="test-to">Adresse de destination</label>
+      <input class="form-input" type="email" id="test-to" placeholder="you@example.com" />
+    </div>
+    <div style="display:flex;gap:var(--space-3);">
+      <button type="button" class="btn btn-primary" id="test-send-btn">Envoyer</button>
+      <button type="button" class="btn btn-ghost" id="test-cancel-btn">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script>
+(async () => {
+  'use strict';
+
+  const user = await requireAuth();
+  if (!user) return;
+  if (user.role !== 'admin') { window.location.href = '/frontend/dashboard.html'; return; }
+
+  renderNav('admin-parametres.html');
+
+  const showAlert = (msg, type = 'success') => {
+    const el = document.getElementById('mail-alert');
+    el.textContent = msg;
+    el.style.display = '';
+    const styles = {
+      success: { bg: 'var(--color-success-bg, #d1fae5)', color: 'var(--color-success, #065f46)' },
+      error:   { bg: 'var(--color-error-bg, #fee2e2)',   color: 'var(--color-error, #dc2626)' },
+      warning: { bg: '#fef3c7',                           color: '#92400e' },
+    };
+    const s = styles[type] || styles.success;
+    el.style.background = s.bg;
+    el.style.color = s.color;
+    setTimeout(() => { el.style.display = 'none'; }, 6000);
+  };
+
+  // ── Load current config ──────────────────────────────────────────────────
+  try {
+    const r = await api.get('/admin/settings/mail');
+    if (r && r.data) {
+      const d = r.data;
+      document.getElementById('mail-host').value        = d.mail_host        || '';
+      document.getElementById('mail-port').value        = d.mail_port        || '587';
+      document.getElementById('mail-username').value    = d.mail_username    || '';
+      // password shown as empty (placeholder)
+      document.getElementById('mail-encryption').value  = d.mail_encryption  || 'tls';
+      document.getElementById('mail-from-address').value= d.mail_from_address|| '';
+      document.getElementById('mail-from-name').value   = d.mail_from_name   || 'ZenCoParent';
+    }
+  } catch (e) {
+    showAlert('Impossible de charger la configuration : ' + e.message, 'error');
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────
+  document.getElementById('mail-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+    const payload = {
+      mail_host:         document.getElementById('mail-host').value.trim(),
+      mail_port:         document.getElementById('mail-port').value.trim() || '587',
+      mail_username:     document.getElementById('mail-username').value.trim(),
+      mail_encryption:   document.getElementById('mail-encryption').value,
+      mail_from_address: document.getElementById('mail-from-address').value.trim(),
+      mail_from_name:    document.getElementById('mail-from-name').value.trim(),
+    };
+    const pwd = document.getElementById('mail-password').value;
+    if (pwd) payload.mail_password = pwd;
+
+    try {
+      await api.put('/admin/settings/mail', payload);
+      showAlert('Configuration enregistrée.', 'success');
+      document.getElementById('mail-password').value = '';
+    } catch (err) {
+      showAlert('Erreur : ' + (err.message || 'Enregistrement impossible.'), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enregistrer';
+    }
+  });
+
+  // ── Handle Stripe redirect ───────────────────────────────────────────────
+  const _params = new URLSearchParams(window.location.search);
+  if (_params.get('checkout') === 'success') {
+    showAlert('Paiement confirmé ! La licence est en cours d\'activation.', 'success');
+    history.replaceState({}, '', window.location.pathname);
+  }
+  if (_params.get('checkout') === 'cancelled') {
+    showAlert('Paiement annulé.', 'warning');
+    history.replaceState({}, '', window.location.pathname);
+  }
+
+  // ── SaaS license block ───────────────────────────────────────────────────
+  (async () => {
+    try {
+      const modeRes = await api.get('/mode');
+      if (!modeRes || !modeRes.data || modeRes.data.mode !== 'saas') return;
+
+      const licCard = document.getElementById('license-card');
+      licCard.style.display = '';
+
+      const r = await api.get('/admin/settings/saas-license');
+      document.getElementById('license-loading').style.display = 'none';
+
+      if (r && r.data && r.data.active) {
+        document.getElementById('license-active-block').style.display = '';
+        const paidDate = r.data.paid_at ? new Date(r.data.paid_at).toLocaleDateString('fr-FR') : '';
+        if (paidDate) document.getElementById('license-paid-date').textContent = 'Activée le ' + paidDate;
+      } else {
+        document.getElementById('license-inactive-block').style.display = '';
+        document.getElementById('buy-license-btn').addEventListener('click', async () => {
+          const btn = document.getElementById('buy-license-btn');
+          const errEl = document.getElementById('license-checkout-error');
+          btn.disabled = true; btn.textContent = 'Redirection…';
+          errEl.style.display = 'none';
+          try {
+            const res = await api.post('/payments/checkout/license', {});
+            if (res && res.data && res.data.url) {
+              window.location.href = res.data.url;
+            } else {
+              throw new Error('URL de paiement manquante.');
+            }
+          } catch (e) {
+            errEl.textContent = e.message || 'Erreur lors de la création du paiement.';
+            errEl.style.display = '';
+            btn.disabled = false; btn.textContent = 'Acheter la licence — 150 €';
+          }
+        });
+      }
+    } catch {
+      document.getElementById('license-loading').style.display = 'none';
+    }
+  })();
+
+  // ── Test modal ────────────────────────────────────────────────────────────
+  const overlay = document.getElementById('test-overlay');
+  document.getElementById('test-btn').addEventListener('click', () => {
+    overlay.style.display = 'flex';
+    document.getElementById('test-to').focus();
+  });
+  document.getElementById('test-cancel-btn').addEventListener('click', () => {
+    overlay.style.display = 'none';
+    document.getElementById('test-error').style.display = 'none';
+  });
+  document.getElementById('test-send-btn').addEventListener('click', async () => {
+    const to   = document.getElementById('test-to').value.trim();
+    const errEl = document.getElementById('test-error');
+    errEl.style.display = 'none';
+
+    if (!to) { errEl.textContent = 'Adresse requise.'; errEl.style.display = ''; return; }
+
+    const btn = document.getElementById('test-send-btn');
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    try {
+      const r = await api.post('/admin/settings/mail/test', { to });
+      if (r && r.success) {
+        overlay.style.display = 'none';
+        showAlert('Email de test envoyé à ' + to + '.', 'success');
+      } else {
+        errEl.textContent = (r && r.error) || 'Erreur inconnue.'; errEl.style.display = '';
+      }
+    } catch (err) {
+      errEl.textContent = err.message || 'Erreur lors de l\'envoi.'; errEl.style.display = '';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer';
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -30,10 +30,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 # ── PHP dependencies ─────────────────────────────────────────────────────────
-# Sans composer.lock commité, Composer résout depuis composer.json (versions ^x.y).
-# Pour un build reproductible, commiter composer.lock et ajouter ici :
-#   COPY composer.lock ./
-COPY composer.json ./
+# composer.lock guarantees reproducible builds with exact dependency versions.
+COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --no-security-blocking
 
 # ── Application code ──────────────────────────────────────────────────────────

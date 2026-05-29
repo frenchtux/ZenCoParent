@@ -109,7 +109,6 @@
               <option value="custody">Garde</option>
               <option value="rendezvous">Rendez-vous</option>
               <option value="activite">Activité</option>
-              <option value="activity">Activité (EN)</option>
               <option value="medical">Médical</option>
               <option value="vacances">Vacances</option>
               <option value="autre">Autre</option>
@@ -124,12 +123,22 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label required" for="event-date">Date</label>
+            <label class="form-label required" for="event-date">Date de début</label>
             <input class="form-input" type="date" id="event-date" required />
           </div>
           <div class="form-group">
-            <label class="form-label" for="event-time">Heure (optionnel)</label>
+            <label class="form-label" for="event-time">Heure de début</label>
             <input class="form-input" type="time" id="event-time" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="event-end-date">Date de fin</label>
+            <input class="form-input" type="date" id="event-end-date" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="event-end-time">Heure de fin</label>
+            <input class="form-input" type="time" id="event-end-time" />
           </div>
         </div>
         <div class="form-group" id="event-report-group" style="display:none;">

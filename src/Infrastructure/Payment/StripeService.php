@@ -53,6 +53,45 @@ final class StripeService
     }
 
     /**
+     * Create a one-time Checkout Session for a SaaS tenant license (150 €).
+     */
+    public function createSaasLicenseSession(string $tenantId): array
+    {
+        $session = Session::create([
+            'mode'        => 'payment',
+            'line_items'  => [[
+                'price_data' => [
+                    'currency'     => 'eur',
+                    'unit_amount'  => 15000, // 150,00 €
+                    'product_data' => [
+                        'name'        => 'Licence ZenCoParent SaaS',
+                        'description' => 'Accès permanent à la plateforme ZenCoParent (paiement unique).',
+                    ],
+                ],
+                'quantity'   => 1,
+            ]],
+            'success_url' => $this->appUrl . '/frontend/license.html?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url'  => $this->appUrl . '/frontend/license.html?checkout=cancelled',
+            'metadata'    => [
+                'type'      => Payment::TYPE_SAAS_LICENSE,
+                'tenant_id' => $tenantId,
+            ],
+        ]);
+
+        $payment = Payment::pending(
+            type:            Payment::TYPE_SAAS_LICENSE,
+            amountCents:     15000,
+            currency:        'eur',
+            tenantId:        $tenantId,
+            stripeSessionId: $session->id,
+            metadata:        ['type' => Payment::TYPE_SAAS_LICENSE, 'tenant_id' => $tenantId],
+        );
+        $this->paymentRepo->save($payment);
+
+        return ['url' => $session->url, 'session_id' => $session->id];
+    }
+
+    /**
      * Create a Checkout Session for a family subscription.
      */
     public function createSubscriptionSession(
