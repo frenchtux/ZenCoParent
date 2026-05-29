@@ -227,6 +227,26 @@
   </div>
 </div>
 
+<!-- Tenants modal (SaaS only) -->
+<div class="modal-backdrop" id="tenants-modal" role="dialog" aria-modal="true" aria-labelledby="tenants-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="tenants-modal-title">Gérer les tenants</h2>
+      <button class="modal-close-btn" onclick="closeModal('tenants-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="tenants-modal-error" style="display:none;color:var(--color-error,#dc2626);font-size:var(--text-sm);margin-bottom:var(--space-3);"></p>
+      <div id="tenants-modal-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('tenants-modal')">Annuler</button>
+      <button type="button" class="btn btn-primary" onclick="utilisateurs.submitTenants()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <script src="/frontend/js/api.js"></script>
 <script src="/frontend/js/auth.js"></script>
 <script src="/frontend/js/ui.js"></script>
