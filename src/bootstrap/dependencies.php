@@ -35,6 +35,7 @@ use ZenCoParent\Application\Invitation\CreateInvitationHandler;
 use ZenCoParent\Application\Invitation\GetInvitationHandler;
 use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordHandler;
+use ZenCoParent\Application\Settings\TenantSettingsService;
 use ZenCoParent\Domain\User\UserTenantAccessRepositoryInterface;
 use ZenCoParent\Application\User\GetUserHandler;
 use ZenCoParent\Application\User\UpdateUserHandler;
@@ -221,6 +222,19 @@ return function (ContainerBuilder $containerBuilder) {
 
         ChangeCredentialsHandler::class => function (ContainerInterface $c) {
             return new ChangeCredentialsHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        TenantSettingsService::class => function (ContainerInterface $c) {
+            return new TenantSettingsService(
+                $c->get(\PDO::class),
+                $_ENV['APP_SECRET'] ?? 'changeme',
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\SettingsController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\SettingsController(
+                $c->get(TenantSettingsService::class),
+            );
         },
 
         UserTenantAccessRepositoryInterface::class => function (ContainerInterface $c) {

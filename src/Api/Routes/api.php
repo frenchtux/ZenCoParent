@@ -5,6 +5,7 @@ use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
+use ZenCoParent\Api\Controllers\SettingsController;
 use ZenCoParent\Api\Controllers\AdminLicenseController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\LicenseController;
@@ -124,6 +125,10 @@ return function (App $app): void {
             // User → Tenant assignment
             $g->get('/users/{id}/tenants',       [AdminController::class, 'getUserTenants']);
             $g->put('/users/{id}/tenants',       [AdminController::class, 'setUserTenants']);
+            // Mail settings
+            $g->get('/settings/mail',            [SettingsController::class, 'getMail']);
+            $g->put('/settings/mail',            [SettingsController::class, 'putMail']);
+            $g->post('/settings/mail/test',      [SettingsController::class, 'testMail']);
         })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management
