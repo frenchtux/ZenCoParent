@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZenCoParent — Photos</title>
+  <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/layout.css" />
+  <link rel="stylesheet" href="/frontend/css/components.css" />
+  <style>
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-4);
+      margin-top: var(--space-4);
+    }
+    .photo-card {
+      position: relative;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+      aspect-ratio: 1 / 1;
+    }
+    .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-card-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.6), transparent 50%);
+      opacity: 0; transition: opacity var(--transition-base);
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: var(--space-3);
+    }
+    .photo-card:hover .photo-card-overlay { opacity: 1; }
+    .photo-card-caption { color: #fff; font-size: var(--text-xs); margin-bottom: var(--space-2); }
+    .photo-card-delete {
+      position: absolute; top: var(--space-2); right: var(--space-2);
+      background: rgba(0,0,0,0.5); color: #fff; border: none; cursor: pointer;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity var(--transition-base);
+    }
+    .photo-card:hover .photo-card-delete { opacity: 1; }
+    .photo-card-delete:hover { background: var(--color-error, #dc2626); }
+  </style>
+</head>
+<body>
+
+<div id="app-shell" class="app-shell">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Photos</h1>
+        <p class="page-subtitle">Partagez les souvenirs des enfants</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary btn-sm" id="btn-new-photo">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Ajouter une photo
+        </button>
+      </div>
+    </div>
+    <div class="page-body">
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:var(--space-2);margin:0;">
+          <label class="form-label" style="white-space:nowrap;margin:0;" for="filter-child">Enfant</label>
+          <select class="form-select" id="filter-child" style="width:auto;min-width:180px;">
+            <option value="">Tous</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="loading-state" class="loading-state" style="margin-top:var(--space-6);"><div class="spinner"></div><span>Chargement...</span></div>
+      <div id="empty-state" class="empty-state" style="display:none;margin-top:var(--space-8);">
+        <div class="empty-state-title">Aucune photo</div>
+        <p class="empty-state-desc">Ajoutez votre première photo avec le bouton ci-dessus.</p>
+      </div>
+      <div class="photo-grid" id="photo-grid" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Upload Modal -->
+<div class="modal-backdrop" id="photo-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Ajouter une photo</h2>
+      <button class="modal-close-btn" onclick="closeModal('photo-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="photo-form">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label required" for="photo-file">Image <span style="font-weight:400;color:var(--color-text-muted);">(JPEG/PNG/GIF/WebP, 10 Mo max)</span></label>
+          <input class="form-input" type="file" id="photo-file" accept="image/*" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="photo-child">Enfant concerné</label>
+          <select class="form-select" id="photo-child">
+            <option value="">— Aucun —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="photo-caption">Légende</label>
+          <input class="form-input" type="text" id="photo-caption" placeholder="Ex : Anniversaire de Léa" maxlength="200" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('photo-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="photo-save-btn">Envoyer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/frontend/js/api.js"></script>
+<script src="/frontend/js/auth.js"></script>
+<script src="/frontend/js/ui.js"></script>
+<script src="/frontend/js/nav.js"></script>
+<script src="/frontend/js/photos.js"></script>
+<script>
+(async function () {
+  const user = await requireAuth();
+  if (!user) return;
+  renderNav('photos.html');
+  await photosInit(user);
+})();
+</script>
+</body>
+</html>

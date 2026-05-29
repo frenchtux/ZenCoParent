@@ -153,6 +153,70 @@
 
     const passwordForm = document.getElementById('password-form');
     if (passwordForm) passwordForm.addEventListener('submit', submitPassword);
+
+    bindGdpr();
+  }
+
+  /* ── RGPD : export + suppression de compte ──────────────────── */
+
+  function bindGdpr() {
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        setLoading(exportBtn, true);
+        try {
+          // Endpoint streams a JSON attachment — fetch as blob and trigger download
+          const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+          const res = await fetch('/account/export', {
+            credentials: 'include',
+            headers: { 'X-CSRF-Token': csrf },
+          });
+          if (!res.ok) throw new Error('Export impossible.');
+          const blob = await res.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url;
+          a.download = 'zencoparent-export.json';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          toast('Export téléchargé.', 'success');
+        } catch (e) {
+          toast(e.message || 'Erreur lors de l\'export.', 'error');
+        } finally {
+          setLoading(exportBtn, false);
+        }
+      });
+    }
+
+    const deleteBtn = document.getElementById('delete-account-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        document.getElementById('delete-form').reset();
+        openModal('delete-modal');
+      });
+    }
+
+    const deleteForm = document.getElementById('delete-form');
+    if (deleteForm) {
+      deleteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pwd = document.getElementById('delete-password').value;
+        if (!pwd) { toast('Mot de passe requis.', 'warning'); return; }
+        const btn = document.getElementById('delete-confirm-btn');
+        setLoading(btn, true);
+        try {
+          await api.del('/account', { password: pwd });
+          auth.clearUser();
+          toast('Compte supprimé.', 'success');
+          setTimeout(() => { window.location.href = '/frontend/index.html'; }, 800);
+        } catch (err) {
+          toast(err.message || 'Suppression impossible.', 'error');
+          setLoading(btn, false);
+        }
+      });
+    }
   }
 
   /* ── Init ────────────────────────────────────────────────── */
