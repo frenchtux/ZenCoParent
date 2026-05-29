@@ -389,19 +389,25 @@ return function (ContainerBuilder $containerBuilder) {
         },
 
         // ── Mailer ───────────────────────────────────────────────────────────
-        MailerInterface::class => function () {
+        MailerInterface::class => function (ContainerInterface $c) {
+            // Env-based fallback mailer (used when no tenant DB config is available)
             $host = $_ENV['MAIL_HOST'] ?? '';
-            if ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community') {
-                return new \ZenCoParent\Infrastructure\Notification\NullMailer();
-            }
-            return new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
-                host:        $host,
-                port:        (int) ($_ENV['MAIL_PORT']        ?? 587),
-                username:    $_ENV['MAIL_USERNAME']    ?? '',
-                password:    $_ENV['MAIL_PASSWORD']    ?? '',
-                encryption:  $_ENV['MAIL_ENCRYPTION']  ?? 'tls',
-                fromAddress: $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.com',
-                fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
+            $fallback = ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community')
+                ? new \ZenCoParent\Infrastructure\Notification\NullMailer()
+                : new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
+                    host:        $host,
+                    port:        (int) ($_ENV['MAIL_PORT']        ?? 587),
+                    username:    $_ENV['MAIL_USERNAME']    ?? '',
+                    password:    $_ENV['MAIL_PASSWORD']    ?? '',
+                    encryption:  $_ENV['MAIL_ENCRYPTION']  ?? 'tls',
+                    fromAddress: $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.com',
+                    fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
+                );
+
+            // Wrap with TenantAwareMailer so each tenant can override SMTP via admin UI
+            return new \ZenCoParent\Infrastructure\Notification\TenantAwareMailer(
+                $c->get(TenantSettingsService::class),
+                $fallback,
             );
         },
 

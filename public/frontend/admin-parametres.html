@@ -153,9 +153,15 @@
     const el = document.getElementById('mail-alert');
     el.textContent = msg;
     el.style.display = '';
-    el.style.background = type === 'success' ? 'var(--color-success-bg, #d1fae5)' : 'var(--color-error-bg, #fee2e2)';
-    el.style.color = type === 'success' ? 'var(--color-success, #065f46)' : 'var(--color-error, #dc2626)';
-    setTimeout(() => { el.style.display = 'none'; }, 5000);
+    const styles = {
+      success: { bg: 'var(--color-success-bg, #d1fae5)', color: 'var(--color-success, #065f46)' },
+      error:   { bg: 'var(--color-error-bg, #fee2e2)',   color: 'var(--color-error, #dc2626)' },
+      warning: { bg: '#fef3c7',                           color: '#92400e' },
+    };
+    const s = styles[type] || styles.success;
+    el.style.background = s.bg;
+    el.style.color = s.color;
+    setTimeout(() => { el.style.display = 'none'; }, 6000);
   };
 
   // ── Load current config ──────────────────────────────────────────────────
@@ -202,6 +208,17 @@
       btn.disabled = false; btn.textContent = 'Enregistrer';
     }
   });
+
+  // ── Handle Stripe redirect ───────────────────────────────────────────────
+  const _params = new URLSearchParams(window.location.search);
+  if (_params.get('checkout') === 'success') {
+    showAlert('Paiement confirmé ! La licence est en cours d\'activation.', 'success');
+    history.replaceState({}, '', window.location.pathname);
+  }
+  if (_params.get('checkout') === 'cancelled') {
+    showAlert('Paiement annulé.', 'warning');
+    history.replaceState({}, '', window.location.pathname);
+  }
 
   // ── SaaS license block ───────────────────────────────────────────────────
   (async () => {
