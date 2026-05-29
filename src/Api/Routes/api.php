@@ -68,6 +68,10 @@ return function (App $app): void {
 
         // Self-registration
         $group->post('/register', [AuthController::class, 'register']);
+
+        // Switch active tenant (requires JWT)
+        $group->post('/switch-tenant', [AuthController::class, 'switchTenant'])
+              ->add(new AuthMiddleware($container->get(JWTService::class)));
     });
 
     // ── License routes (public — accessible even when trial expired) ─────────
@@ -117,6 +121,9 @@ return function (App $app): void {
             $g->get('/plans',                    [AdminController::class, 'listPlans']);
             $g->put('/plans/{id}',               [AdminController::class, 'updatePlan']);
             $g->get('/payments',                 [AdminController::class, 'listPayments']);
+            // User → Tenant assignment
+            $g->get('/users/{id}/tenants',       [AdminController::class, 'getUserTenants']);
+            $g->put('/users/{id}/tenants',       [AdminController::class, 'setUserTenants']);
         })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management

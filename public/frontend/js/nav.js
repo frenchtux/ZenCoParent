@@ -223,6 +223,9 @@
           <div class="sidebar-user-role">${escapeHtml(roleLabel)}</div>
         </div>
       </div>
+      <div id="sidebar-tenant-switcher" style="display:none;padding:0 var(--space-4) var(--space-2);">
+        <select id="tenant-select" style="width:100%;font-size:var(--text-xs);padding:4px 6px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);cursor:pointer;" title="Changer d'espace famille"></select>
+      </div>
 
       <div class="sidebar-nav">
         <div class="nav-section-label">Navigation</div>
@@ -247,6 +250,39 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => auth.logout());
     }
+
+    // Load tenant list for switcher (async, non-blocking)
+    (async () => {
+      try {
+        const result = await api.get('/admin/users/' + user.id + '/tenants');
+        const tenants = (result && result.data) ? result.data : [];
+        if (Array.isArray(tenants) && tenants.length > 1) {
+          const switcher = document.getElementById('sidebar-tenant-switcher');
+          const sel      = document.getElementById('tenant-select');
+          if (switcher && sel) {
+            sel.innerHTML = tenants.map(t =>
+              `<option value="${escapeHtml(t.id)}"${t.id === user.tenant_id ? ' selected' : ''}>${escapeHtml(t.name)}</option>`
+            ).join('');
+            switcher.style.display = '';
+            sel.addEventListener('change', async function () {
+              try {
+                const r = await api.post('/auth/switch-tenant', { tenant_id: this.value });
+                if (r && r.success) {
+                  // Update stored user with new tenant context
+                  const u = auth.getUser();
+                  if (u) { u.tenant_id = r.data.tenant_id; auth.setUser(u); }
+                  window.location.reload();
+                }
+              } catch (e) {
+                alert('Erreur lors du changement de tenant : ' + (e.message || ''));
+              }
+            });
+          }
+        }
+      } catch {
+        // User may not have multi-tenant access — silently ignore
+      }
+    })();
 
     // Bind invite button
     const inviteBtn = document.getElementById('sidebar-invite-btn');

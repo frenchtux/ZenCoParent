@@ -35,6 +35,7 @@ use ZenCoParent\Application\Invitation\CreateInvitationHandler;
 use ZenCoParent\Application\Invitation\GetInvitationHandler;
 use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordHandler;
+use ZenCoParent\Domain\User\UserTenantAccessRepositoryInterface;
 use ZenCoParent\Application\User\GetUserHandler;
 use ZenCoParent\Application\User\UpdateUserHandler;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
@@ -222,6 +223,13 @@ return function (ContainerBuilder $containerBuilder) {
             return new ChangeCredentialsHandler($c->get(UserRepositoryInterface::class));
         },
 
+        UserTenantAccessRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteUserTenantAccessRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserTenantAccessRepository($pdo);
+        },
+
         // JWT Service
         JWTService::class => function () {
             $authConfig = require __DIR__ . '/../Config/auth.php';
@@ -334,7 +342,10 @@ return function (ContainerBuilder $containerBuilder) {
 
         \ZenCoParent\Api\Controllers\AdminController::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Api\Controllers\AdminController(
-                $c->get(AdminService::class)
+                $c->get(AdminService::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(UserTenantAccessRepositoryInterface::class),
             );
         },
 
