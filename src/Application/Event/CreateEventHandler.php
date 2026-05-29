@@ -49,22 +49,15 @@ final class CreateEventHandler
             throw ValidationException::withErrors(['end_at' => 'Invalid end date format. Must be ISO 8601.']);
         }
 
-        // Validate endAt > startAt
-        if ($endAt <= $startAt) {
-            throw ValidationException::withErrors(['end_at' => 'La date de fin doit être postérieure à la date de début.']);
+        // Validate endAt >= startAt (equal allowed for all-day / instantaneous events)
+        if ($endAt < $startAt) {
+            throw ValidationException::withErrors(['end_at' => 'La date de fin ne peut pas être antérieure à la date de début.']);
         }
 
-        // Medical events: child_id and report are both mandatory
+        // Medical events: child_id is mandatory; report is optional (filled after the appointment)
         if ($eventType === EventType::Medical) {
-            $errors = [];
             if ($command->childId === null) {
-                $errors['child_id'] = 'child_id is required for medical events';
-            }
-            if (is_null($command->report) || trim($command->report) === '') {
-                $errors['report'] = 'Report is required for medical events';
-            }
-            if (!empty($errors)) {
-                throw ValidationException::withErrors($errors);
+                throw ValidationException::withErrors(['child_id' => 'child_id is required for medical events']);
             }
         }
 

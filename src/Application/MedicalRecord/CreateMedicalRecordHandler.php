@@ -21,10 +21,7 @@ final class CreateMedicalRecordHandler
 
     public function handle(CreateMedicalRecordCommand $command): MedicalRecordDTO
     {
-        // Validate report not empty
-        if (trim($command->report) === '') {
-            throw ValidationException::withErrors(['report' => 'Report is required.']);
-        }
+        // report is optional — can be filled after the appointment takes place
 
         // Verify child exists and belongs to tenant
         $child = $this->childRepo->findById($command->childId);

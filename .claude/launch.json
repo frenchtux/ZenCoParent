@@ -5,12 +5,13 @@
       "name": "ZenCoParent — Full Stack (Docker Compose)",
       "runtimeExecutable": "docker",
       "runtimeArgs": ["compose", "up", "--build"],
-      "port": 80
+      "port": 8061,
+      "autoPort": true
     },
     {
       "name": "PHP Dev Server — Community mode (SQLite, no Docker)",
       "runtimeExecutable": "D:\\Users\\FXD\\AppData\\Local\\Microsoft\\WinGet\\Packages\\PHP.PHP.8.5_Microsoft.Winget.Source_8wekyb3d8bbwe\\php.exe",
-      "runtimeArgs": ["-S", "localhost:8080", "-t", "public/"],
+      "runtimeArgs": ["-S", "localhost:8080", "-t", "public/", "public/router.php"],
       "port": 8080
     },
     {

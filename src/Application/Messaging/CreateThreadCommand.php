@@ -6,9 +6,10 @@ namespace ZenCoParent\Application\Messaging;
 final readonly class CreateThreadCommand
 {
     public function __construct(
-        public string $tenantId,
-        public string $type,
-        public string $createdBy,
-        public array  $participantIds = [],
+        public string  $tenantId,
+        public string  $type,
+        public string  $createdBy,
+        public array   $participantIds = [],
+        public ?string $subject        = null,
     ) {}
 }

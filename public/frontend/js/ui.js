@@ -38,7 +38,8 @@
 
     function dismiss() {
       el.classList.add('exiting');
-      el.addEventListener('animationend', () => el.remove(), { once: true });
+      // Remove after animation (350ms > 300ms --transition-slow), fallback if animationend misses
+      setTimeout(() => el.remove(), 350);
     }
 
     el.querySelector('.toast-close').addEventListener('click', dismiss);

@@ -71,8 +71,8 @@
         ? formatShortDate(thread.last_message_at)
         : '';
       const preview   = thread.last_message_preview || thread.description || '—';
-      // Display: thread has no title in DB — use type label as title
-      const displayTitle = thread.title || threadTypeLabel(typeKey);
+      // Display: subject if set, otherwise type label
+      const displayTitle = thread.subject || thread.title || threadTypeLabel(typeKey);
       return `
         <div class="thread-item ${isActive ? 'active' : ''}" data-thread-id="${thread.id}" onclick="selectThread('${thread.id}')">
           <div class="avatar avatar-md ${typeAvatarColor(typeKey)}" style="flex-shrink:0;">
@@ -121,7 +121,7 @@
 
     // Set header
     document.getElementById('chat-thread-title').textContent = activeThread
-      ? (activeThread.title || 'Conversation')
+      ? (activeThread.subject || activeThread.title || threadTypeLabel((activeThread.type || 'parents').toLowerCase()))
       : '';
     const typeKey = activeThread
       ? (activeThread.thread_type || activeThread.type || 'general').toLowerCase()
@@ -279,11 +279,12 @@
       // participant IDs are UUIDs — do NOT parse as int
       const selectedParticipants = Array.from(participantEls.selectedOptions).map(o => o.value);
 
+      const subject = (document.getElementById('thread-subject')?.value || '').trim();
       const payload = {
-        // API expects 'type', not 'thread_type'
-        type: document.getElementById('thread-type').value,
+        type:            document.getElementById('thread-type').value,
         participant_ids: selectedParticipants,
       };
+      if (subject) payload.subject = subject;
 
       if (!payload.type) {
         toast('Le type de conversation est requis.', 'warning');
