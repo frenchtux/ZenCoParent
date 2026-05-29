@@ -112,9 +112,12 @@ return function (App $app): void {
 
     $protectedGroup = $app->group('', function (RouteCollectorProxy $outer) use ($container, $moduleMiddleware): void {
 
-        // ── Subscription checkout (authenticated) ────────────────────────────
-        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription']);
-        $outer->get('/payments/portal',                 [PaymentController::class, 'portal']);
+        // ── Subscription / billing (parents only) ───────────────────────────
+        $outer->get('/billing/status',                  [PaymentController::class, 'billingStatus']);
+        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription'])
+              ->add(new RequireRoleMiddleware(['parent']));
+        $outer->get('/payments/portal',                 [PaymentController::class, 'portal'])
+              ->add(new RequireRoleMiddleware(['parent']));
 
         // ── Admin routes (role = admin) ──────────────────────────────────────
         $outer->group('/admin', function (RouteCollectorProxy $g) use ($container): void {

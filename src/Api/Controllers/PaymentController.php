@@ -83,6 +83,43 @@ final class PaymentController
         return ApiResponse::success($response, $result);
     }
 
+    /** GET /billing/status — current subscription status for authenticated tenant */
+    public function billingStatus(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        $tenantId = (string) $request->getAttribute('tenantId');
+        $sub      = $this->subscriptionRepo->findByTenantId($tenantId);
+
+        if ($sub === null) {
+            return ApiResponse::success($response, [
+                'status'         => 'none',
+                'plan'           => null,
+                'period_end'     => null,
+                'trial_ends_at'  => null,
+                'cancel_at'      => null,
+                'billing_interval' => null,
+            ]);
+        }
+
+        $plan = $sub->getPlanId() ? $this->planRepo->findById($sub->getPlanId()) : null;
+
+        return ApiResponse::success($response, [
+            'status'           => $sub->getStatus(),
+            'plan'             => $plan ? [
+                'id'           => $plan->getId(),
+                'name'         => $plan->getDisplayName(),
+                'price_monthly'=> $plan->getPriceMonthyCents() / 100,
+                'price_yearly' => $plan->getPriceYearlyCents() / 100,
+            ] : null,
+            'period_end'       => $sub->getCurrentPeriodEnd()?->format(\DateTimeInterface::ATOM),
+            'trial_ends_at'    => $sub->getTrialEndsAt()?->format(\DateTimeInterface::ATOM),
+            'cancel_at'        => $sub->getCancelledAt()?->format(\DateTimeInterface::ATOM),
+            'billing_interval' => $sub->getBillingInterval(),
+        ]);
+    }
+
     /** GET /payments/portal — redirect to Stripe Customer Portal */
     public function portal(
         ServerRequestInterface $request,
