@@ -137,6 +137,7 @@
   // pour éviter le flash visuel (FOUC) lors des chargements suivants.
 
   let IS_SAAS = localStorage.getItem('zenco_mode') === 'saas';
+  window.IS_SAAS = IS_SAAS;
 
   function applyTheme() {
     if (!IS_SAAS) return;
@@ -165,6 +166,7 @@
       localStorage.setItem('zenco_mode', mode);
       if (nowSaas !== IS_SAAS) {
         IS_SAAS = nowSaas;
+        window.IS_SAAS = nowSaas;
         nowSaas ? applyTheme() : removeTheme();
       }
     })
