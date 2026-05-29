@@ -299,14 +299,9 @@ return function (ContainerBuilder $containerBuilder) {
         },
 
         LicenseService::class => function (ContainerInterface $c) {
-            $masterKey = $_ENV['LICENSE_MASTER_KEY'] ?? '';
-            if ($masterKey === '') {
-                throw new \RuntimeException('LICENSE_MASTER_KEY must be set in the environment — no default is allowed.');
-            }
             return new LicenseService(
                 $c->get(LicenseRepositoryInterface::class),
-                $masterKey,
-                $c->get(LoggerInterface::class),
+                logger: $c->get(LoggerInterface::class),
             );
         },
 

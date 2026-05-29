@@ -10,10 +10,18 @@ use ZenCoParent\Domain\License\LicenseRepositoryInterface;
 
 final class LicenseService
 {
+    /**
+     * Ed25519 public key (hex, 32 bytes).
+     * The matching private key lives only in the offline license generator — never on this server.
+     * To rotate: generate a new keypair with `python scripts/generate_license.py --keygen`,
+     * update this constant, and redeploy.
+     */
+    private const PUBLIC_KEY_HEX = '7040c3ceb3d4690974df3a2b396b61377998e6db9fea95fb87cd565e2f877fc2';
+
     public function __construct(
         private LicenseRepositoryInterface $repo,
-        private string                     $masterKey,
-        private LoggerInterface            $logger = new NullLogger(),
+        private string                     $publicKeyHex = self::PUBLIC_KEY_HEX,
+        private LoggerInterface            $logger       = new NullLogger(),
     ) {}
 
     /**
@@ -33,28 +41,86 @@ final class LicenseService
     }
 
     /**
-     * Validate and apply an activation key.
-     * Stores the machine fingerprint on success.
-     * Returns true on success, false if the key is wrong.
+     * Validate and apply a v2 Ed25519-signed license token.
+     *
+     * Token format: base64url(json_payload) . "." . base64url(ed25519_signature)
+     *
+     * Payload fields (JSON):
+     *   v                : 2
+     *   installation_key : must match the stored installation key
+     *   customer_email   : informational
+     *   issued_at        : ISO 8601
+     *   expires_at       : ISO 8601 or null
+     *
+     * Returns true on success, false if the token is invalid, expired, or for a different installation.
      */
-    public function activate(string $activationKey): bool
+    public function activate(string $token): bool
     {
-        $license  = $this->getOrCreate();
-        $expected = $this->deriveActivationKey($license->getInstallationKey());
-
-        if (!hash_equals($expected, strtoupper(trim($activationKey)))) {
+        $parts = explode('.', trim($token), 2);
+        if (count($parts) !== 2) {
             return false;
         }
 
+        [$payloadB64, $sigB64] = $parts;
+
+        $payloadJson = self::base64urlDecode($payloadB64);
+        $signature   = self::base64urlDecode($sigB64);
+
+        if ($payloadJson === false || $signature === false) {
+            return false;
+        }
+
+        // Verify Ed25519 signature
+        try {
+            $publicKey = sodium_hex2bin($this->publicKeyHex);
+            $valid     = sodium_crypto_sign_verify_detached($signature, $payloadJson, $publicKey);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        if (!$valid) {
+            return false;
+        }
+
+        $payload = json_decode($payloadJson, true);
+        if (!is_array($payload) || ($payload['v'] ?? 0) !== 2) {
+            return false;
+        }
+
+        $license = $this->getOrCreate();
+
+        // Installation key must match this specific instance
+        if (($payload['installation_key'] ?? '') !== $license->getInstallationKey()) {
+            return false;
+        }
+
+        // Check expiry if set
+        if (!empty($payload['expires_at'])) {
+            try {
+                $expiresAt = new \DateTimeImmutable($payload['expires_at']);
+                if ($expiresAt < new \DateTimeImmutable()) {
+                    return false;
+                }
+            } catch (\Throwable) {
+                return false;
+            }
+        }
+
         $fingerprint = $this->calculateMachineFingerprint();
-        $activated   = $license->withActivation(strtoupper(trim($activationKey)), $fingerprint);
+        $expiresAt   = !empty($payload['expires_at']) ? new \DateTimeImmutable($payload['expires_at']) : null;
+        $activated   = $license->withActivation(
+            token:         trim($token),
+            fingerprint:   $fingerprint,
+            customerEmail: $payload['customer_email'] ?? null,
+            expiresAt:     $expiresAt,
+        );
+
         $this->repo->update($activated);
         return true;
     }
 
     /**
      * Revoke the current installation license.
-     * Returns false if no license exists or it is already revoked.
      */
     public function revoke(): bool
     {
@@ -68,8 +134,7 @@ final class LicenseService
 
     /**
      * Check whether the current machine fingerprint matches the stored one.
-     * Logs a warning if a mismatch is detected (possible cloned installation).
-     * Never blocks — detection only.
+     * Logs a warning on mismatch (detection only — never blocks).
      */
     public function checkFingerprint(License $license): void
     {
@@ -89,33 +154,16 @@ final class LicenseService
         }
     }
 
-    /**
-     * Derive the activation key for a given installation key.
-     * The developer uses this offline to generate keys for customers.
-     *
-     * Format: ACT-XXXX-XXXX-XXXX-XXXX-XXXX  (20 uppercase hex chars, grouped)
-     */
-    public function deriveActivationKey(string $installationKey): string
-    {
-        $hmac  = strtoupper(hash_hmac('sha256', $installationKey, $this->masterKey));
-        $chars = substr($hmac, 0, 20);
-        return 'ACT-' . implode('-', str_split($chars, 4));
-    }
-
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Format: ZNCO-XXXX-XXXX-XXXX-XXXX-XXXX  (20 uppercase hex chars, grouped)
-     */
+    /** ZNCO-XXXX-XXXX-XXXX-XXXX-XXXX  (10 random bytes → 20 uppercase hex chars) */
     private function generateInstallationKey(): string
     {
         $hex = strtoupper(bin2hex(random_bytes(10)));
         return 'ZNCO-' . implode('-', str_split($hex, 4));
     }
 
-    /**
-     * SHA-256 of: hostname + installation path + first available MAC address.
-     */
+    /** SHA-256 of: hostname + install path + first available MAC address. */
     private function calculateMachineFingerprint(): string
     {
         $hostname = gethostname() ?: 'unknown';
@@ -126,7 +174,6 @@ final class LicenseService
 
     private function getFirstMacAddress(): string
     {
-        // Prefer Linux /sys/class/net (works in Docker without shell_exec)
         $sysNet = '/sys/class/net';
         if (is_dir($sysNet)) {
             foreach (scandir($sysNet) ?: [] as $iface) {
@@ -139,11 +186,16 @@ final class LicenseService
                 }
             }
         }
-        // Fallback: ip command (Linux/Docker)
         $output = @shell_exec("ip link show 2>/dev/null | grep -oP '(?<=ether )[\w:]+' | head -1");
         if ($output && trim($output) !== '') {
             return trim($output);
         }
         return 'unknown';
+    }
+
+    private static function base64urlDecode(string $input): string|false
+    {
+        $padded = str_pad(strtr($input, '-_', '+/'), strlen($input) + (4 - strlen($input) % 4) % 4, '=');
+        return base64_decode($padded, strict: true);
     }
 }

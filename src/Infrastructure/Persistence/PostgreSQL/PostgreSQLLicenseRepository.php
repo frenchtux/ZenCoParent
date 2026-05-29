@@ -21,10 +21,12 @@ final class PostgreSQLLicenseRepository extends AbstractRepository implements Li
         $stmt = $this->pdo->prepare(
             'INSERT INTO app_license
                 (id, installation_key, activation_key, installed_at, activated_at,
-                 is_active, instance_id, revoked_at, machine_fingerprint)
+                 is_active, instance_id, revoked_at, machine_fingerprint,
+                 customer_email, expires_at)
              VALUES
                 (:id, :installation_key, :activation_key, :installed_at, :activated_at,
-                 :is_active, :instance_id, :revoked_at, :machine_fingerprint)'
+                 :is_active, :instance_id, :revoked_at, :machine_fingerprint,
+                 :customer_email, :expires_at)'
         );
         $stmt->execute([
             'id'                 => $license->getId(),
@@ -36,6 +38,8 @@ final class PostgreSQLLicenseRepository extends AbstractRepository implements Li
             'instance_id'        => $license->getInstanceId(),
             'revoked_at'         => $license->getRevokedAt()?->format('Y-m-d H:i:s'),
             'machine_fingerprint'=> $license->getMachineFingerprint(),
+            'customer_email'     => $license->getCustomerEmail(),
+            'expires_at'         => $license->getExpiresAt()?->format('Y-m-d H:i:s'),
         ]);
     }
 
@@ -47,7 +51,9 @@ final class PostgreSQLLicenseRepository extends AbstractRepository implements Li
                 activated_at        = :activated_at,
                 is_active           = :is_active,
                 revoked_at          = :revoked_at,
-                machine_fingerprint = :machine_fingerprint
+                machine_fingerprint = :machine_fingerprint,
+                customer_email      = :customer_email,
+                expires_at          = :expires_at
              WHERE id = :id'
         );
         $stmt->execute([
@@ -57,6 +63,8 @@ final class PostgreSQLLicenseRepository extends AbstractRepository implements Li
             'is_active'          => $license->isActive() ? 'true' : 'false',
             'revoked_at'         => $license->getRevokedAt()?->format('Y-m-d H:i:s'),
             'machine_fingerprint'=> $license->getMachineFingerprint(),
+            'customer_email'     => $license->getCustomerEmail(),
+            'expires_at'         => $license->getExpiresAt()?->format('Y-m-d H:i:s'),
         ]);
     }
 }
