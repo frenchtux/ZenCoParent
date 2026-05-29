@@ -87,7 +87,13 @@ final class CreateEventHandler
         try {
             $this->eventRepo->save($event);
 
-            if ($eventType === EventType::Medical) {
+            // Only create the medical_record if a report is provided now.
+            // Otherwise the event stays report-less and the pending-CR flow at
+            // the next login will force the parent to fill it in after the RDV.
+            if ($eventType === EventType::Medical
+                && $command->report !== null
+                && trim($command->report) !== ''
+            ) {
                 // Parse recordedAt or fall back to event's startAt
                 $recordedAt = $event->getStartAt();
                 if ($command->recordedAt !== null) {

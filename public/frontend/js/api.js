@@ -130,8 +130,11 @@
       });
     },
 
-    del(path) {
-      return apiFetch(path, { method: 'DELETE' });
+    del(path, body) {
+      return apiFetch(path, {
+        method: 'DELETE',
+        body: body != null ? JSON.stringify(body) : undefined,
+      });
     },
   };
 

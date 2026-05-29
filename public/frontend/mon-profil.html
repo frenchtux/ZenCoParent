@@ -84,6 +84,32 @@
             </div>
           </div>
 
+          <!-- Card: Données personnelles (RGPD) -->
+          <div class="card">
+            <div class="card-header">
+              <h2 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);margin:0;">Mes données (RGPD)</h2>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:var(--space-4);">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:600;font-size:var(--text-sm);">Exporter mes données</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-secondary);">Téléchargez l'ensemble de vos données au format JSON.</div>
+                </div>
+                <button type="button" class="btn btn-secondary" id="export-btn">Exporter</button>
+              </div>
+
+              <hr style="border:none;border-top:1px solid var(--color-border);margin:0;" />
+
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:600;font-size:var(--text-sm);color:var(--color-error,#dc2626);">Supprimer mon compte</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-secondary);">Action irréversible. Toutes vos données seront effacées.</div>
+                </div>
+                <button type="button" class="btn btn-danger" id="delete-account-btn">Supprimer</button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Right column: Profile summary -->
@@ -114,6 +140,33 @@
 </div>
 
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Delete account confirmation modal -->
+<div class="modal-backdrop" id="delete-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" style="color:var(--color-error,#dc2626);">Supprimer mon compte</h2>
+      <button class="modal-close-btn" onclick="closeModal('delete-modal')" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="delete-form">
+      <div class="modal-body">
+        <p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-4);">
+          Cette action est <strong>irréversible</strong>. Saisissez votre mot de passe pour confirmer la suppression définitive de votre compte et de toutes vos données.
+        </p>
+        <div class="form-group">
+          <label class="form-label required" for="delete-password">Mot de passe</label>
+          <input class="form-input" type="password" id="delete-password" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('delete-modal')">Annuler</button>
+        <button type="submit" class="btn btn-danger" id="delete-confirm-btn">Supprimer définitivement</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script src="/frontend/js/api.js"></script>
 <script src="/frontend/js/auth.js"></script>
