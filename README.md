@@ -6,6 +6,19 @@ Disponible en deux modes :
 - **Community** — auto-hébergé, SQLite, aucun abonnement, une famille par instance
 - **SaaS** — multi-tenant PostgreSQL + Stripe, toutes les familles sur une instance partagée
 
+## Fonctionnalités
+
+- **Authentification** JWT (cookie httpOnly) + CSRF double-submit, OAuth Google optionnel
+- **Changement de credentials obligatoire** au premier login de l'admin
+- **Multi-tenants** : un utilisateur peut accéder à plusieurs espaces familles et basculer de l'un à l'autre
+- **Enfants & Calendrier** : événements avec date de début/fin, support multi-jours
+- **Médical** : antécédents par enfant, **pièces jointes** (PDF/images), **compte-rendu de RDV obligatoire à la connexion suivante** du parent accompagnant
+- **Messagerie** : conversations entre parents ou famille entière, avec **sujet**
+- **Dépenses** partagées, **Photos** (galerie)
+- **RGPD** : export de ses données (JSON) + suppression de compte
+- **Admin** : dashboard, gestion des familles/modules, plans, paiements, **config SMTP par tenant**
+- **Monétisation SaaS** : licence à paiement unique (150 €) + abonnements mensuels par famille (Stripe)
+
 ---
 
 ## Prérequis
@@ -47,25 +60,44 @@ CSRF_SECRET=<autre chaîne aléatoire>
 APP_URL=http://localhost:8080
 ```
 
-### 3. Lancer le serveur de développement
+### 3. Initialiser la base et le compte admin
 
 ```bash
-php -S localhost:8080 -t public/
+php database/migrations/migrate_sqlite.php   # applique les 23 migrations sur SQLite
+php seed_admin.php                           # crée le tenant + l'admin par défaut
 ```
 
-La base SQLite est créée automatiquement au premier démarrage dans `storage/database.sqlite`.
+La base SQLite est créée dans `storage/database.sqlite`.
 
-### 4. Via Docker (optionnel)
+### 4. Lancer le serveur de développement
 
 ```bash
-docker compose up --build
+php -S localhost:8080 -t public/ public/router.php
 ```
 
-L'app est accessible sur `http://localhost`.
+> Le script `public/router.php` est **indispensable** avec le serveur intégré PHP :
+> il sert les fichiers statiques du frontend et route le reste vers `index.php`.
+> Sans lui, `/frontend/*` renvoie l'API au lieu des pages.
 
-### 5. Premier accès
+### 5. Via Docker (recommandé)
 
-Ouvrir `http://localhost:8080/frontend/register.html` et créer le premier compte administrateur.
+```bash
+docker compose -f docker-compose.community.yml up --build
+```
+
+L'entrypoint applique automatiquement les migrations et crée l'admin par défaut.
+
+### 6. Premier accès
+
+Ouvrir `http://localhost:8080` et se connecter avec le **compte admin par défaut** :
+
+| Champ | Valeur |
+|---|---|
+| Tenant (espace famille) | `zencoparent` |
+| Email | `admin@zencoparent.local` |
+| Mot de passe | `Admin1234!` |
+
+> **Au premier login, un changement obligatoire d'email et de mot de passe est imposé** (modal bloquant). Définissez vos propres identifiants à ce moment-là.
 
 ---
 
@@ -126,17 +158,17 @@ STRIPE_INSTALLATION_KEY_PRICE_ID=price_...
 ZENCO_ENV_FILE=.env.saas docker compose up --build -d
 ```
 
-### 4. Exécuter les migrations
+Le `docker-compose.yml` inclut deux conteneurs d'init qui s'exécutent automatiquement dans l'ordre :
+1. **`migrate`** — applique les 23 migrations PostgreSQL (`migrate.php`)
+2. **`seed`** — crée le tenant `zencoparent` + l'admin par défaut (`seed_admin_saas.php`)
+
+Aucune étape manuelle n'est nécessaire au premier démarrage. Pour rejouer manuellement :
 
 ```bash
-# Depuis le conteneur PHP
 docker compose exec php php database/migrations/migrate.php
-
-# Ou en local si PHP et les variables d'env sont disponibles
-php database/migrations/migrate.php
 ```
 
-Les 17 migrations sont appliquées dans l'ordre. Les migrations déjà exécutées sont ignorées.
+Les 23 migrations sont appliquées dans l'ordre ; celles déjà exécutées (table `migrations`) sont ignorées.
 
 ### 5. Configurer le webhook Stripe
 
@@ -169,8 +201,17 @@ WHERE name = 'family';
 
 ### 7. Premier accès
 
-Ouvrir `https://votre-domaine.com/frontend/register.html`.
-Le premier compte créé avec le rôle `admin` aura accès au dashboard d'administration (`/frontend/admin.html`).
+Se connecter avec l'**admin par défaut** créé par le conteneur `seed` :
+
+| Champ | Valeur |
+|---|---|
+| Tenant | `zencoparent` |
+| Email | `admin@zencoparent.local` |
+| Mot de passe | `Admin1234!` |
+
+Un **changement obligatoire d'email + mot de passe** est imposé au premier login. L'admin a accès au dashboard d'administration (`/frontend/admin.html`).
+
+> **Inscription publique** : `/frontend/register.html` crée un nouveau tenant familial dont l'utilisateur est **parent** (jamais admin). Les comptes admin supplémentaires se créent depuis l'interface admin (`/frontend/utilisateurs.html`).
 
 ---
 
@@ -205,6 +246,16 @@ Le premier compte créé avec le rôle `admin` aura accès au dashboard d'admini
 | `GOOGLE_CLIENT_SECRET` | Non | OAuth Google (optionnel) |
 | `RATE_LIMIT_REQUESTS` | Non | Requêtes max par fenêtre (défaut: 60) |
 | `RATE_LIMIT_WINDOW` | Non | Fenêtre de rate limiting en secondes (défaut: 60) |
+| `MAIL_HOST` | Non | Serveur SMTP (fallback global). Surchargeable **par tenant** via l'admin |
+| `MAIL_PORT` | Non | Port SMTP (défaut: 587) |
+| `MAIL_ENCRYPTION` | Non | `tls` ou `ssl` |
+| `MAIL_USERNAME` | Non | Identifiant SMTP |
+| `MAIL_PASSWORD` | Non | Mot de passe SMTP |
+| `MAIL_FROM_ADDRESS` | Non | Adresse expéditeur |
+| `MAIL_FROM_NAME` | Non | Nom expéditeur |
+| `APP_PORT` | Non | Port hôte exposé par nginx (défaut: 80 ; ex: 8061 en dev) |
+
+> **SMTP par tenant** : chaque administrateur peut configurer son propre serveur SMTP depuis `/frontend/admin-parametres.html`. La config en base (chiffrée AES-256) prime sur les variables `MAIL_*` d'environnement.
 
 ---
 
@@ -227,7 +278,8 @@ Les migrations exécutées sont tracées dans la table `migrations`.
 ## Structure du projet
 
 ```
-├── database/migrations/    Scripts SQL (001–017) + runner PHP
+├── database/migrations/    Scripts SQL (001–023) + runner PHP
+│   └── sqlite/             Overrides SQLite des migrations PostgreSQL-spécifiques
 ├── docker/                 Configs Nginx, PHP, Dockerfile
 ├── public/
 │   ├── frontend/           Interface HTML/JS vanilla
@@ -261,8 +313,8 @@ Les modules peuvent être activés/désactivés individuellement par famille dep
 ## Développement local
 
 ```bash
-# Mode community — SQLite, pas de Docker
-php -S localhost:8080 -t public/
+# Mode community — SQLite, pas de Docker (router.php obligatoire)
+php -S localhost:8080 -t public/ public/router.php
 
 # Mode SaaS — nécessite PostgreSQL + Redis + MinIO (Docker Compose)
 ZENCO_ENV_FILE=.env.saas docker compose up
