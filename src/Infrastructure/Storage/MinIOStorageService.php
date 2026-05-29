@@ -17,6 +17,7 @@ final class MinIOStorageService implements FileStorageInterface
         private readonly string $accessKey,
         private readonly string $secretKey,
         private readonly string $region = 'us-east-1',
+        private readonly string $publicUrl = '',
     ) {
         $this->http = new Client(['base_uri' => rtrim($endpoint, '/') . '/']);
     }
@@ -46,7 +47,8 @@ final class MinIOStorageService implements FileStorageInterface
 
     public function getPublicUrl(string $key): string
     {
-        return rtrim($this->endpoint, '/') . '/' . $this->bucket . '/' . ltrim($key, '/');
+        $base = $this->publicUrl !== '' ? $this->publicUrl : $this->endpoint;
+        return rtrim($base, '/') . '/' . $this->bucket . '/' . ltrim($key, '/');
     }
 
     public function delete(string $key): void

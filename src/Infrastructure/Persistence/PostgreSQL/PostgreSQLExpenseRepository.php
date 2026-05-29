@@ -19,22 +19,13 @@ final class PostgreSQLExpenseRepository extends AbstractRepository implements Ex
 
     public function findByTenantId(
         string  $tenantId,
-        ?string $paidBy   = null,
-        ?string $category = null,
         ?string $from     = null,
         ?string $to       = null,
+        ?string $category = null,
     ): array {
         $params = ['tenant_id' => $tenantId];
         $sql    = 'SELECT * FROM expenses WHERE tenant_id = :tenant_id';
 
-        if ($paidBy !== null) {
-            $sql .= ' AND paid_by = :paid_by';
-            $params['paid_by'] = $paidBy;
-        }
-        if ($category !== null) {
-            $sql .= ' AND category = :category';
-            $params['category'] = $category;
-        }
         if ($from !== null) {
             $sql .= ' AND date >= :from';
             $params['from'] = $from;
@@ -42,6 +33,10 @@ final class PostgreSQLExpenseRepository extends AbstractRepository implements Ex
         if ($to !== null) {
             $sql .= ' AND date <= :to';
             $params['to'] = $to;
+        }
+        if ($category !== null) {
+            $sql .= ' AND category = :category';
+            $params['category'] = $category;
         }
 
         $sql .= ' ORDER BY date DESC';

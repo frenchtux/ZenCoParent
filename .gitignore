@@ -27,6 +27,14 @@
 *.swp
 *.swo
 
+# Generated config files (contiennent des secrets)
+*.generated.yml
+*.generated
+.env.saas.generated
+
+# Scripts privés (ne jamais publier)
+scripts/generate_license.py
+
 # PHP CS Fixer cache
 .php-cs-fixer.cache
 .php_cs.cache

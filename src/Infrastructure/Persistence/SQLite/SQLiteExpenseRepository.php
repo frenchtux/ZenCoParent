@@ -17,7 +17,7 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
         return $row !== false ? Expense::fromArray($row) : null;
     }
 
-    public function findByTenantId(string $tenantId, ?string $from = null, ?string $to = null): array
+    public function findByTenantId(string $tenantId, ?string $from = null, ?string $to = null, ?string $category = null): array
     {
         $params = ['tenant_id' => $tenantId];
         $sql    = 'SELECT * FROM expenses WHERE tenant_id = :tenant_id';
@@ -30,6 +30,11 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
         if ($to !== null) {
             $sql .= ' AND date <= :to';
             $params['to'] = $to;
+        }
+
+        if ($category !== null) {
+            $sql .= ' AND category = :category';
+            $params['category'] = $category;
         }
 
         $sql .= ' ORDER BY date DESC, created_at DESC';

@@ -11,8 +11,8 @@ final class ListExpensesHandler
         private ExpenseRepositoryInterface $expenseRepo,
     ) {}
 
-    public function handle(string $tenantId, ?string $from = null, ?string $to = null): array
+    public function handle(string $tenantId, ?string $from = null, ?string $to = null, ?string $category = null): array
     {
-        return $this->expenseRepo->findByTenantId($tenantId, $from, $to);
+        return $this->expenseRepo->findByTenantId($tenantId, $from, $to, $category);
     }
 }

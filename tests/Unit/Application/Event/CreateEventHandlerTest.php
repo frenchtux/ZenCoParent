@@ -93,11 +93,16 @@ final class CreateEventHandlerTest extends TestCase
         $this->assertSame('medical', $result->type);
     }
 
-    public function test_throws_validation_if_medical_event_missing_report(): void
+    public function test_creates_medical_event_without_report(): void
     {
-        $this->expectException(ValidationException::class);
+        // report is optional — CR flow at next login fills it in
+        $child = $this->makeChild();
+        $this->childRepo->shouldReceive('findById')->with($this->childId)->andReturn($child);
+        $this->txManager->shouldReceive('begin')->once();
+        $this->txManager->shouldReceive('commit')->once();
+        $this->eventRepo->shouldReceive('save')->once();
 
-        $this->handler->handle(new CreateEventCommand(
+        $result = $this->handler->handle(new CreateEventCommand(
             tenantId:  $this->tenantId,
             title:     'Doctor visit',
             type:      'medical',
@@ -106,8 +111,10 @@ final class CreateEventHandlerTest extends TestCase
             allDay:    false,
             createdBy: $this->userId,
             childId:   $this->childId,
-            report:    null, // missing!
+            report:    null,
         ));
+
+        $this->assertSame('medical', $result->type);
     }
 
     public function test_throws_validation_if_medical_event_missing_child_id(): void
