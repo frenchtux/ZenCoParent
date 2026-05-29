@@ -7,7 +7,7 @@ interface ExpenseRepositoryInterface
 {
     public function findById(string $id): ?Expense;
 
-    public function findByTenantId(string $tenantId, ?string $from = null, ?string $to = null): array;
+    public function findByTenantId(string $tenantId, ?string $from = null, ?string $to = null, ?string $category = null): array;
 
     public function save(Expense $expense): void;
 

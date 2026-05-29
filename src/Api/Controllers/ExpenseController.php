@@ -31,8 +31,9 @@ final class ExpenseController
 
         $expenses = $this->listHandler->handle(
             tenantId: $tenantId,
-            from:     $params['from'] ?? null,
-            to:       $params['to']   ?? null,
+            from:     $params['from']     ?? null,
+            to:       $params['to']       ?? null,
+            category: $params['category'] ?? null,
         );
 
         return ApiResponse::success($response, array_map(fn($e) => $e->toArray(), $expenses));
@@ -48,8 +49,8 @@ final class ExpenseController
         if (empty($body['description'])) {
             return ApiResponse::error($response, "Le champ 'description' est requis.", 400);
         }
-        if (empty($body['amount']) || (float) $body['amount'] <= 0) {
-            return ApiResponse::error($response, "Le montant doit être supérieur à 0.", 400);
+        if (!isset($body['amount']) || $body['amount'] === '') {
+            return ApiResponse::error($response, "Le champ 'amount' est requis.", 400);
         }
         if (empty($body['date'])) {
             return ApiResponse::error($response, "Le champ 'date' est requis.", 400);
@@ -62,6 +63,7 @@ final class ExpenseController
             description: trim((string) $body['description']),
             date:        (string) $body['date'],
             category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
+            splitRatio:  isset($body['split_ratio']) && is_array($body['split_ratio']) ? $body['split_ratio'] : [],
         );
 
         try {

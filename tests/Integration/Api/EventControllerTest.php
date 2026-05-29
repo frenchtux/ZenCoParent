@@ -329,9 +329,9 @@ final class EventControllerTest extends IntegrationTestCase
         $this->assertSame(401, $this->makeRequest('GET', '/events')->getStatusCode());
     }
 
-    // ── end_at validation (end must be strictly after start) ──────────────────
+    // ── end_at validation (end_at >= start_at is allowed; only strict before is rejected) ──
 
-    public function test_create_rejects_end_at_equal_to_start_at(): void
+    public function test_create_allows_end_at_equal_to_start_at(): void
     {
         $response = $this->makeRequest('POST', '/events', body: [
             'title'    => 'Zero duration',
@@ -340,9 +340,7 @@ final class EventControllerTest extends IntegrationTestCase
             'end_at'   => '2026-06-01T10:00:00+00:00',
         ], cookies: ['jwt' => $this->jwtToken]);
 
-        $this->assertSame(422, $response->getStatusCode());
-        $body = $this->decodeJson($response);
-        $this->assertArrayHasKey('end_at', $body['errors']);
+        $this->assertSame(201, $response->getStatusCode());
     }
 
     public function test_create_rejects_end_at_before_start_at(): void

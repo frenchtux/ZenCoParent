@@ -116,6 +116,7 @@ return function (ContainerBuilder $containerBuilder) {
                 accessKey: $_ENV['MINIO_ACCESS_KEY'] ?? '',
                 secretKey: $_ENV['MINIO_SECRET_KEY'] ?? '',
                 region:    $_ENV['MINIO_REGION']     ?? 'us-east-1',
+                publicUrl: $_ENV['MINIO_PUBLIC_URL'] ?? $_ENV['MINIO_ENDPOINT'] ?? 'http://minio:9000',
             );
         },
 

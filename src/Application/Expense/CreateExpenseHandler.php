@@ -40,6 +40,7 @@ final class CreateExpenseHandler
             description: $command->description,
             date:        $command->date,
             category:    $command->category,
+            splitRatio:  $command->splitRatio,
         );
 
         $this->expenseRepo->save($expense);
