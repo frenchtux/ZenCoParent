@@ -33,7 +33,11 @@ use ZenCoParent\Application\Auth\RegisterHandler;
 use ZenCoParent\Application\Invitation\AcceptInvitationHandler;
 use ZenCoParent\Application\Invitation\CreateInvitationHandler;
 use ZenCoParent\Application\Invitation\GetInvitationHandler;
+use ZenCoParent\Application\User\ChangeCredentialsHandler;
 use ZenCoParent\Application\User\ChangePasswordHandler;
+use ZenCoParent\Application\Settings\TenantSettingsService;
+use ZenCoParent\Domain\MedicalRecord\MedicalAttachmentRepositoryInterface;
+use ZenCoParent\Domain\User\UserTenantAccessRepositoryInterface;
 use ZenCoParent\Application\User\GetUserHandler;
 use ZenCoParent\Application\User\UpdateUserHandler;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
@@ -217,6 +221,37 @@ return function (ContainerBuilder $containerBuilder) {
             return new ChangePasswordHandler($c->get(UserRepositoryInterface::class));
         },
 
+        ChangeCredentialsHandler::class => function (ContainerInterface $c) {
+            return new ChangeCredentialsHandler($c->get(UserRepositoryInterface::class));
+        },
+
+        MedicalAttachmentRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMedicalAttachmentRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalAttachmentRepository($pdo);
+        },
+
+        TenantSettingsService::class => function (ContainerInterface $c) {
+            return new TenantSettingsService(
+                $c->get(\PDO::class),
+                $_ENV['APP_SECRET'] ?? 'changeme',
+            );
+        },
+
+        \ZenCoParent\Api\Controllers\SettingsController::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Api\Controllers\SettingsController(
+                $c->get(TenantSettingsService::class),
+            );
+        },
+
+        UserTenantAccessRepositoryInterface::class => function (ContainerInterface $c) {
+            $pdo = $c->get(\PDO::class);
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteUserTenantAccessRepository($pdo)
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserTenantAccessRepository($pdo);
+        },
+
         // JWT Service
         JWTService::class => function () {
             $authConfig = require __DIR__ . '/../Config/auth.php';
@@ -329,7 +364,10 @@ return function (ContainerBuilder $containerBuilder) {
 
         \ZenCoParent\Api\Controllers\AdminController::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Api\Controllers\AdminController(
-                $c->get(AdminService::class)
+                $c->get(AdminService::class),
+                $c->get(UserRepositoryInterface::class),
+                $c->get(TenantRepositoryInterface::class),
+                $c->get(UserTenantAccessRepositoryInterface::class),
             );
         },
 
@@ -351,19 +389,25 @@ return function (ContainerBuilder $containerBuilder) {
         },
 
         // ── Mailer ───────────────────────────────────────────────────────────
-        MailerInterface::class => function () {
+        MailerInterface::class => function (ContainerInterface $c) {
+            // Env-based fallback mailer (used when no tenant DB config is available)
             $host = $_ENV['MAIL_HOST'] ?? '';
-            if ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community') {
-                return new \ZenCoParent\Infrastructure\Notification\NullMailer();
-            }
-            return new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
-                host:        $host,
-                port:        (int) ($_ENV['MAIL_PORT']        ?? 587),
-                username:    $_ENV['MAIL_USERNAME']    ?? '',
-                password:    $_ENV['MAIL_PASSWORD']    ?? '',
-                encryption:  $_ENV['MAIL_ENCRYPTION']  ?? 'tls',
-                fromAddress: $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.com',
-                fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
+            $fallback = ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community')
+                ? new \ZenCoParent\Infrastructure\Notification\NullMailer()
+                : new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
+                    host:        $host,
+                    port:        (int) ($_ENV['MAIL_PORT']        ?? 587),
+                    username:    $_ENV['MAIL_USERNAME']    ?? '',
+                    password:    $_ENV['MAIL_PASSWORD']    ?? '',
+                    encryption:  $_ENV['MAIL_ENCRYPTION']  ?? 'tls',
+                    fromAddress: $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.com',
+                    fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
+                );
+
+            // Wrap with TenantAwareMailer so each tenant can override SMTP via admin UI
+            return new \ZenCoParent\Infrastructure\Notification\TenantAwareMailer(
+                $c->get(TenantSettingsService::class),
+                $fallback,
             );
         },
 
@@ -377,6 +421,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(UserRepositoryInterface::class),
                 $c->get(MailerInterface::class),
                 $c->get(LoggerInterface::class),
+                $c->get(TenantSettingsService::class),
             );
         },
 

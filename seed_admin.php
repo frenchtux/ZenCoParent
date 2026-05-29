@@ -56,14 +56,14 @@ $user = $row->fetch();
 
 $hash = password_hash($password, PASSWORD_BCRYPT);
 if ($user) {
-    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+    $pdo->prepare('UPDATE users SET password_hash = :hash, must_change_credentials = 1 WHERE id = :id')
         ->execute(['hash' => $hash, 'id' => $user['id']]);
     echo "[OK]   User '{$email}' mot de passe mis à jour (id={$user['id']})\n";
 } else {
     $userId = uuid4();
     $pdo->prepare(
-        "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:id, :tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', 1, datetime('now'), datetime('now'))"
+        "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, must_change_credentials, created_at, updated_at)
+         VALUES (:id, :tid, :email, :hash, 'Admin', 'ZenCoParent', 'admin', 1, 1, datetime('now'), datetime('now'))"
     )->execute([
         'id'    => $userId,
         'tid'   => $tenantId,
@@ -73,37 +73,10 @@ if ($user) {
     echo "[OK]   User '{$email}' créé (id={$userId})\n";
 }
 
-// ── Parent user (pour tester le flow co-parental) ─────────────────────────────
-$parentEmail = 'parent@zencoparent.local';
-$row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :email');
-$row->execute(['tid' => $tenantId, 'email' => $parentEmail]);
-$parent = $row->fetch();
-
-$hash2 = password_hash('Parent1234!', PASSWORD_BCRYPT);
-if ($parent) {
-    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
-        ->execute(['hash' => $hash2, 'id' => $parent['id']]);
-    echo "[OK]   User '{$parentEmail}' mot de passe mis à jour\n";
-} else {
-    $parentId = uuid4();
-    $pdo->prepare(
-        "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES (:id, :tid, :email, :hash, 'Parent', 'ZenCoParent', 'parent', 1, datetime('now'), datetime('now'))"
-    )->execute([
-        'id'    => $parentId,
-        'tid'   => $tenantId,
-        'email' => $parentEmail,
-        'hash'  => $hash2,
-    ]);
-    echo "[OK]   User '{$parentEmail}' créé (id={$parentId})\n";
-}
-
 echo "\n";
 echo "══════════════════════════════════════════════════════\n";
-echo "  Comptes par défaut (Community — SQLite) :\n";
+echo "  Compte par défaut (Community — SQLite) :\n";
 echo "  Tenant slug   : {$tenantSlug}\n";
 echo "  Login admin   : {$email}\n";
 echo "  Mot de passe  : Admin1234!\n";
-echo "  Login parent  : {$parentEmail}\n";
-echo "  Mot de passe  : Parent1234!\n";
 echo "══════════════════════════════════════════════════════\n";

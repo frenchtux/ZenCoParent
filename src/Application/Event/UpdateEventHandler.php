@@ -52,9 +52,9 @@ final class UpdateEventHandler
             throw ValidationException::withErrors(['end_at' => 'Invalid end date format. Must be ISO 8601.']);
         }
 
-        // Validate endAt >= startAt
-        if ($endAt < $startAt) {
-            throw ValidationException::withErrors(['end_at' => 'End date must be greater than or equal to start date.']);
+        // Validate endAt > startAt
+        if ($endAt <= $startAt) {
+            throw ValidationException::withErrors(['end_at' => 'La date de fin doit être postérieure à la date de début.']);
         }
 
         $updatedEvent = $event->withUpdated(

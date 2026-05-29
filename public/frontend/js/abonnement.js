@@ -6,6 +6,13 @@
 
   const user = await requireAuth();
   if (!user) return;
+
+  // Admins do not manage subscriptions — redirect to dashboard
+  if (user.role === 'admin') {
+    window.location.href = '/frontend/dashboard.html';
+    return;
+  }
+
   renderNav('abonnement.html');
 
   let selectedInterval = 'monthly';
@@ -23,25 +30,61 @@
   }
 
   // ── Load current subscription ─────────────────────────────────────────────
+  const STATUS_LABELS = {
+    none:      { label: 'Aucun abonnement', cls: 'badge-neutral' },
+    trial:     { label: 'Période d\'essai', cls: 'badge-warning' },
+    active:    { label: 'Actif',            cls: 'badge-success' },
+    past_due:  { label: 'Paiement en retard', cls: 'badge-error' },
+    cancelled: { label: 'Annulé',           cls: 'badge-neutral' },
+    expired:   { label: 'Expiré',           cls: 'badge-error'   },
+  };
+
   async function loadCurrentSub() {
-    // Re-use /users/me to get tenantId, then fetch sub via dashboard endpoint
-    // We don't have a direct /subscription endpoint — use the admin-style data
-    // available via a future /me/subscription. For now derive from /users/me.
-    const meRes = await api.get('/users/me');
-    if (!meRes.success) return;
-
+    const res = await api.get('/billing/status');
     const subBody = document.getElementById('current-sub-body');
-
-    // Show portal button only if there's a Stripe customer
     const portalCard = document.getElementById('portal-card');
-    if (portalCard) portalCard.style.display = 'block';
 
-    // Simple status display — real sub data comes from API
-    subBody.innerHTML = `
-      <p class="text-muted">
-        Consultez les plans ci-dessous pour souscrire ou changer d'offre.
-        Votre abonnement actuel sera affiché ici une fois connecté à Stripe.
-      </p>`;
+    if (!res || !res.success) {
+      subBody.innerHTML = '<p class="text-muted">Impossible de charger le statut.</p>';
+      return;
+    }
+
+    const d = res.data;
+    const statusInfo = STATUS_LABELS[d.status] || { label: d.status, cls: 'badge-neutral' };
+
+    let html = `<div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);">
+      <span class="badge ${statusInfo.cls}">${escapeHtml(statusInfo.label)}</span>`;
+
+    if (d.plan) {
+      html += `<span style="font-weight:600;">${escapeHtml(d.plan.name)}</span>`;
+      const price = d.billing_interval === 'yearly' ? d.plan.price_yearly : d.plan.price_monthly;
+      const label = d.billing_interval === 'yearly' ? '/an' : '/mois';
+      html += `<span class="text-muted">${price.toFixed(2)} €${label}</span>`;
+    }
+    html += '</div>';
+
+    if (d.period_end) {
+      const dt = new Date(d.period_end).toLocaleDateString('fr-FR');
+      html += `<p class="text-muted" style="margin:0;font-size:var(--text-sm);">Prochaine échéance : <strong>${dt}</strong></p>`;
+    }
+    if (d.trial_ends_at && d.status === 'trial') {
+      const dt = new Date(d.trial_ends_at).toLocaleDateString('fr-FR');
+      html += `<p class="text-muted" style="margin:var(--space-2) 0 0;font-size:var(--text-sm);">Essai gratuit jusqu'au : <strong>${dt}</strong></p>`;
+    }
+    if (d.cancel_at) {
+      const dt = new Date(d.cancel_at).toLocaleDateString('fr-FR');
+      html += `<p style="margin:var(--space-2) 0 0;font-size:var(--text-sm);color:var(--color-error,#dc2626);">Annulé le ${dt}</p>`;
+    }
+    if (!d.plan) {
+      html += `<p class="text-muted" style="margin:var(--space-2) 0 0;font-size:var(--text-sm);">Sélectionnez un plan ci-dessous pour démarrer votre abonnement.</p>`;
+    }
+
+    subBody.innerHTML = html;
+
+    // Show portal only if subscription exists
+    if (d.status !== 'none' && d.plan && portalCard) {
+      portalCard.style.display = 'block';
+    }
   }
 
   // ── Load plans ────────────────────────────────────────────────────────────

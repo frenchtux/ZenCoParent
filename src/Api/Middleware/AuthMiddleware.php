@@ -37,6 +37,9 @@ final class AuthMiddleware implements MiddlewareInterface
             ->withAttribute('tenantId', $payload['tenant_id'])
             ->withAttribute('role',     $payload['role']);
 
+        // Make tenant ID available to TenantAwareMailer without polluting handler signatures
+        $GLOBALS['_ZENCO_TENANT_ID'] = $payload['tenant_id'];
+
         return $handler->handle($request);
     }
 }

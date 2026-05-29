@@ -111,12 +111,13 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     protected function makeUploadRequest(
-        string $path,
-        string $fileContent,
-        string $filename,
-        string $mimeType,
-        array  $fields  = [],
-        array  $cookies = [],
+        string  $path,
+        string  $fileContent,
+        string  $filename,
+        string  $mimeType,
+        array   $fields    = [],
+        array   $cookies   = [],
+        ?string $csrfToken = null,
     ): ResponseInterface {
         $tmpFile = tempnam(sys_get_temp_dir(), 'zcp_upload_');
         file_put_contents($tmpFile, $fileContent);
@@ -143,6 +144,10 @@ abstract class IntegrationTestCase extends TestCase
             $request = $request->withCookieParams(array_merge($request->getCookieParams(), [$name => $value]));
         }
 
+        if ($csrfToken !== null) {
+            $request = $request->withHeader('X-CSRF-Token', $csrfToken);
+        }
+
         $response = $this->app->handle($request);
 
         @unlink($tmpFile);
@@ -166,16 +171,40 @@ abstract class IntegrationTestCase extends TestCase
         string $email = 'alice@example.com',
         string $password = 'Secret123!',
         string $role = 'parent',
+        bool   $mustChangeCredentials = false,
     ): string {
         $id   = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
         $now  = date('Y-m-d H:i:s');
 
         $this->pdo->prepare(
-            "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, created_at, updated_at)
-             VALUES (:id, :tid, :email, :hash, 'Alice', 'Test', :role, :now, :now)"
-        )->execute(['id' => $id, 'tid' => $tenantId, 'email' => $email, 'hash' => $hash, 'role' => $role, 'now' => $now]);
+            "INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, must_change_credentials, created_at, updated_at)
+             VALUES (:id, :tid, :email, :hash, 'Alice', 'Test', :role, :mcc, :now, :now)"
+        )->execute([
+            'id'   => $id,
+            'tid'  => $tenantId,
+            'email'=> $email,
+            'hash' => $hash,
+            'role' => $role,
+            'mcc'  => $mustChangeCredentials ? 1 : 0,
+            'now'  => $now,
+        ]);
 
+        return $id;
+    }
+
+    protected function createMedicalRecord(
+        string $tenantId,
+        string $childId,
+        string $createdBy,
+        string $report = 'Bilan annuel RAS',
+    ): string {
+        $id  = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $now = date('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            "INSERT INTO medical_records (id, tenant_id, child_id, report, recorded_at, created_by, created_at)
+             VALUES (:id, :tid, :cid, :report, :now, :by, :now)"
+        )->execute(['id' => $id, 'tid' => $tenantId, 'cid' => $childId, 'report' => $report, 'by' => $createdBy, 'now' => $now]);
         return $id;
     }
 

@@ -46,26 +46,27 @@ final class SQLiteUserRepository extends AbstractRepository implements UserRepos
             'INSERT INTO users (
                 id, tenant_id, email, password_hash, first_name, last_name,
                 phone, address, role, is_active, email_verified_at, last_login_at,
-                created_at, updated_at
+                created_at, updated_at, must_change_credentials
             ) VALUES (
                 :id, :tenant_id, :email, :password_hash, :first_name, :last_name,
                 :phone, :address, :role, :is_active, :email_verified_at, :last_login_at,
-                datetime(\'now\'), datetime(\'now\')
+                datetime(\'now\'), datetime(\'now\'), :must_change_credentials
             )'
         );
         $stmt->execute([
-            'id'                => $data['id'],
-            'tenant_id'         => $data['tenant_id'],
-            'email'             => $data['email'],
-            'password_hash'     => $data['password_hash'],
-            'first_name'        => $data['first_name'],
-            'last_name'         => $data['last_name'],
-            'phone'             => $data['phone'],
-            'address'           => $data['address'],
-            'role'              => $data['role'],
-            'is_active'         => $data['is_active'] ? 1 : 0,
-            'email_verified_at' => $data['email_verified_at'],
-            'last_login_at'     => $data['last_login_at'],
+            'id'                      => $data['id'],
+            'tenant_id'               => $data['tenant_id'],
+            'email'                   => $data['email'],
+            'password_hash'           => $data['password_hash'],
+            'first_name'              => $data['first_name'],
+            'last_name'               => $data['last_name'],
+            'phone'                   => $data['phone'],
+            'address'                 => $data['address'],
+            'role'                    => $data['role'],
+            'is_active'               => $data['is_active'] ? 1 : 0,
+            'email_verified_at'       => $data['email_verified_at'],
+            'last_login_at'           => $data['last_login_at'],
+            'must_change_credentials' => $data['must_change_credentials'] ? 1 : 0,
         ]);
     }
 
@@ -74,32 +75,34 @@ final class SQLiteUserRepository extends AbstractRepository implements UserRepos
         $data = $user->toArray();
         $stmt = $this->pdo->prepare(
             'UPDATE users SET
-                email             = :email,
-                password_hash     = :password_hash,
-                first_name        = :first_name,
-                last_name         = :last_name,
-                phone             = :phone,
-                address           = :address,
-                role              = :role,
-                is_active         = :is_active,
-                email_verified_at = :email_verified_at,
-                last_login_at     = :last_login_at,
-                updated_at        = :updated_at
+                email                   = :email,
+                password_hash           = :password_hash,
+                first_name              = :first_name,
+                last_name               = :last_name,
+                phone                   = :phone,
+                address                 = :address,
+                role                    = :role,
+                is_active               = :is_active,
+                email_verified_at       = :email_verified_at,
+                last_login_at           = :last_login_at,
+                must_change_credentials = :must_change_credentials,
+                updated_at              = :updated_at
             WHERE id = :id'
         );
         $stmt->execute([
-            'id'                => $data['id'],
-            'email'             => $data['email'],
-            'password_hash'     => $data['password_hash'],
-            'first_name'        => $data['first_name'],
-            'last_name'         => $data['last_name'],
-            'phone'             => $data['phone'],
-            'address'           => $data['address'],
-            'role'              => $data['role'],
-            'is_active'         => $data['is_active'] ? 1 : 0,
-            'email_verified_at' => $data['email_verified_at'],
-            'last_login_at'     => $data['last_login_at'],
-            'updated_at'        => date('Y-m-d H:i:s'),
+            'id'                      => $data['id'],
+            'email'                   => $data['email'],
+            'password_hash'           => $data['password_hash'],
+            'first_name'              => $data['first_name'],
+            'last_name'               => $data['last_name'],
+            'phone'                   => $data['phone'],
+            'address'                 => $data['address'],
+            'role'                    => $data['role'],
+            'is_active'               => $data['is_active'] ? 1 : 0,
+            'email_verified_at'       => $data['email_verified_at'],
+            'last_login_at'           => $data['last_login_at'],
+            'must_change_credentials' => $data['must_change_credentials'] ? 1 : 0,
+            'updated_at'              => date('Y-m-d H:i:s'),
         ]);
     }
 

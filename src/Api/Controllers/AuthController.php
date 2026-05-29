@@ -16,17 +16,24 @@ use ZenCoParent\Application\Auth\RefreshTokenCommand;
 use ZenCoParent\Application\Auth\RefreshTokenHandler;
 use ZenCoParent\Application\Auth\RegisterCommand;
 use ZenCoParent\Application\Auth\RegisterHandler;
+use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
+use ZenCoParent\Domain\User\UserRepositoryInterface;
+use ZenCoParent\Domain\User\UserTenantAccessRepositoryInterface;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
 
 final class AuthController
 {
     public function __construct(
-        private LoginHandler        $loginHandler,
-        private LogoutHandler       $logoutHandler,
-        private RefreshTokenHandler $refreshHandler,
-        private OAuthGoogleHandler  $oauthHandler,
-        private GoogleOAuthService  $googleOAuth,
-        private RegisterHandler     $registerHandler,
+        private LoginHandler                      $loginHandler,
+        private LogoutHandler                     $logoutHandler,
+        private RefreshTokenHandler               $refreshHandler,
+        private OAuthGoogleHandler                $oauthHandler,
+        private GoogleOAuthService                $googleOAuth,
+        private RegisterHandler                   $registerHandler,
+        private UserRepositoryInterface           $userRepo,
+        private TenantRepositoryInterface         $tenantRepo,
+        private UserTenantAccessRepositoryInterface $utaRepo,
+        private \ZenCoParent\Infrastructure\Auth\JWTService $jwt,
     ) {}
 
     public function register(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -139,6 +146,67 @@ final class AuthController
 
         return $this->applyAuthCookies($response, $result)
             ->withAddedHeader('Set-Cookie', $clearNonce);
+    }
+
+    // ─── Multi-tenant switch ─────────────────────────────────────────────────
+
+    /** POST /auth/switch-tenant — issue a new JWT for a different tenant */
+    public function switchTenant(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $userId   = (string) $request->getAttribute('userId');
+        $body     = (array)  $request->getParsedBody();
+        $tenantId = trim((string) ($body['tenant_id'] ?? ''));
+
+        if ($tenantId === '') {
+            return ApiResponse::error($response, 'tenant_id est requis.', 400);
+        }
+
+        // Verify the target tenant exists
+        $tenant = $this->tenantRepo->findById($tenantId);
+        if ($tenant === null) {
+            return ApiResponse::error($response, 'Tenant introuvable.', 404);
+        }
+
+        // Verify the user has access to that tenant
+        $user = $this->userRepo->findById($userId);
+        if ($user === null) {
+            return ApiResponse::error($response, 'User introuvable.', 404);
+        }
+
+        // Access is valid if: user's own tenant OR explicit grant in user_tenant_access
+        $ownTenant   = $user->getTenantId() === $tenantId;
+        $grantedAccess = $this->utaRepo->hasAccess($userId, $tenantId);
+
+        if (!$ownTenant && !$grantedAccess) {
+            return ApiResponse::error($response, 'Accès non autorisé à ce tenant.', 403);
+        }
+
+        // Determine role for this tenant
+        $accessList = $this->utaRepo->findTenantsByUserId($userId);
+        $role = $user->getRole()->value; // default = own role
+        foreach ($accessList as $access) {
+            if ($access['id'] === $tenantId) {
+                $role = $access['role'];
+                break;
+            }
+        }
+
+        $secure    = ($_ENV['APP_ENV'] ?? 'production') !== 'local' ? '; Secure' : '';
+        $jwtExpiry = (int) ($_ENV['JWT_EXPIRY'] ?? 3600);
+
+        $newAccessToken = $this->jwt->generateAccessToken($userId, $tenantId, $role);
+        $csrfToken      = bin2hex(random_bytes(32));
+
+        $jwtCookie  = "jwt={$newAccessToken}; Path=/; HttpOnly; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
+        $csrfCookie = "csrf_token={$csrfToken}; Path=/; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
+
+        return ApiResponse::success($response, [
+            'tenant_id' => $tenantId,
+            'tenant'    => ['id' => $tenant->getId(), 'name' => $tenant->getName(), 'slug' => $tenant->getSlug()],
+            'role'      => $role,
+        ])
+            ->withAddedHeader('Set-Cookie', $jwtCookie)
+            ->withAddedHeader('Set-Cookie', $csrfCookie);
     }
 
     // ─── Cookie helpers ───────────────────────────────────────────────────────

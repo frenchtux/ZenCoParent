@@ -93,6 +93,10 @@
               ${toggleIcon}
               ${toggleLabel}
             </button>
+            ${IS_SAAS ? `<button class="btn btn-outline btn-sm" title="Gérer les tenants" onclick="utilisateurs.openTenantsModal('${u.id}', '${fullName}')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+              Tenants
+            </button>` : ''}
           </div>
         </td>
       </tr>`;
@@ -299,11 +303,78 @@
     if (pwdForm) pwdForm.addEventListener('submit', submitPasswordReset);
   }
 
+  /* ── Tenants Modal (SaaS only) ───────────────────────────── */
+
+  let _tenantsUserId = null;
+
+  async function openTenantsModal(userId, userName) {
+    _tenantsUserId = userId;
+    const title = document.getElementById('tenants-modal-title');
+    const body  = document.getElementById('tenants-modal-body');
+    const error = document.getElementById('tenants-modal-error');
+    if (title) title.textContent = `Tenants — ${userName}`;
+    if (error) error.style.display = 'none';
+    if (body) body.innerHTML = '<p style="color:var(--color-text-muted);font-size:var(--text-sm);">Chargement…</p>';
+
+    openModal('tenants-modal');
+
+    try {
+      // Get list of all tenants (admin endpoint)
+      const [tenantsRes, userTenantsRes] = await Promise.all([
+        api.get('/admin/families?limit=200'),
+        api.get(`/admin/users/${userId}/tenants`),
+      ]);
+
+      const allTenants   = (tenantsRes  && tenantsRes.data) ? tenantsRes.data : [];
+      const userTenantIds = new Set(
+        ((userTenantsRes && userTenantsRes.data) ? userTenantsRes.data : []).map(t => t.id)
+      );
+
+      if (!allTenants.length) {
+        body.innerHTML = '<p style="color:var(--color-text-muted);font-size:var(--text-sm);">Aucun tenant disponible.</p>';
+        return;
+      }
+
+      body.innerHTML = `
+        <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+          Cochez les tenants auxquels cet utilisateur peut accéder.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);max-height:300px;overflow-y:auto;">
+          ${allTenants.map(t => `
+            <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;padding:var(--space-2);">
+              <input type="checkbox" value="${escapeHtml(t.id)}" ${userTenantIds.has(t.id) ? 'checked' : ''} />
+              <span style="font-size:var(--text-sm);">${escapeHtml(t.slug || t.name || t.id)}</span>
+            </label>`).join('')}
+        </div>`;
+    } catch (e) {
+      if (body) body.innerHTML = `<p style="color:var(--color-error);font-size:var(--text-sm);">Erreur : ${escapeHtml(e.message || '')}</p>`;
+    }
+  }
+
+  async function submitTenants() {
+    if (!_tenantsUserId) return;
+    const body   = document.getElementById('tenants-modal-body');
+    const error  = document.getElementById('tenants-modal-error');
+    if (error) error.style.display = 'none';
+
+    const checked = Array.from(body.querySelectorAll('input[type=checkbox]:checked')).map(el => el.value);
+
+    try {
+      await api.put(`/admin/users/${_tenantsUserId}/tenants`, { tenant_ids: checked, role: 'parent' });
+      closeModal('tenants-modal');
+      toast('Accès tenants mis à jour.', 'success');
+    } catch (e) {
+      if (error) { error.textContent = e.message || 'Erreur'; error.style.display = ''; }
+    }
+  }
+
   // Expose
   global.utilisateurs = {
     openCreateModal,
     openEditModal,
     openPasswordModal,
+    openTenantsModal,
+    submitTenants,
     toggleStatus,
   };
   global.utilisateursInit = utilisateursInit;

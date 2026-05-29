@@ -5,6 +5,8 @@ use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
+use ZenCoParent\Api\Controllers\MedicalAttachmentController;
+use ZenCoParent\Api\Controllers\SettingsController;
 use ZenCoParent\Api\Controllers\AdminLicenseController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\LicenseController;
@@ -68,6 +70,10 @@ return function (App $app): void {
 
         // Self-registration
         $group->post('/register', [AuthController::class, 'register']);
+
+        // Switch active tenant (requires JWT)
+        $group->post('/switch-tenant', [AuthController::class, 'switchTenant'])
+              ->add(new AuthMiddleware($container->get(JWTService::class)));
     });
 
     // ── License routes (public — accessible even when trial expired) ─────────
@@ -88,6 +94,10 @@ return function (App $app): void {
     $app->post('/payments/webhook',                    [PaymentController::class, 'webhook']);
     // Installation key checkout: public (no account needed to buy a key)
     $app->post('/payments/checkout/installation-key',  [PaymentController::class, 'checkoutInstallationKey']);
+    // SaaS license checkout: public pre-auth (admin redirected after Stripe)
+    $app->post('/payments/checkout/license',           [PaymentController::class, 'checkoutLicense'])
+        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
+        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
 
     // ── Invitation public routes (no auth) ───────────────────────────────────
     $app->get('/invitations/{token}',         [InvitationController::class, 'show']);
@@ -103,9 +113,12 @@ return function (App $app): void {
 
     $protectedGroup = $app->group('', function (RouteCollectorProxy $outer) use ($container, $moduleMiddleware): void {
 
-        // ── Subscription checkout (authenticated) ────────────────────────────
-        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription']);
-        $outer->get('/payments/portal',                 [PaymentController::class, 'portal']);
+        // ── Subscription / billing (parents only) ───────────────────────────
+        $outer->get('/billing/status',                  [PaymentController::class, 'billingStatus']);
+        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription'])
+              ->add(new RequireRoleMiddleware(['parent']));
+        $outer->get('/payments/portal',                 [PaymentController::class, 'portal'])
+              ->add(new RequireRoleMiddleware(['parent']));
 
         // ── Admin routes (role = admin) ──────────────────────────────────────
         $outer->group('/admin', function (RouteCollectorProxy $g) use ($container): void {
@@ -117,6 +130,15 @@ return function (App $app): void {
             $g->get('/plans',                    [AdminController::class, 'listPlans']);
             $g->put('/plans/{id}',               [AdminController::class, 'updatePlan']);
             $g->get('/payments',                 [AdminController::class, 'listPayments']);
+            // User → Tenant assignment
+            $g->get('/users/{id}/tenants',       [AdminController::class, 'getUserTenants']);
+            $g->put('/users/{id}/tenants',       [AdminController::class, 'setUserTenants']);
+            // Mail settings
+            $g->get('/settings/mail',            [SettingsController::class, 'getMail']);
+            $g->put('/settings/mail',            [SettingsController::class, 'putMail']);
+            $g->post('/settings/mail/test',      [SettingsController::class, 'testMail']);
+            // SaaS tenant license status
+            $g->get('/settings/saas-license',    [SettingsController::class, 'licenseStatus']);
         })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management
@@ -124,10 +146,11 @@ return function (App $app): void {
             $group->get('',    [UserController::class, 'index']);
             $group->post('',   [UserController::class, 'create'])
                   ->add(new RequireRoleMiddleware(['admin']));
-            $group->get('/me', [UserController::class, 'me']);
-            $group->get('/{id}',            [UserController::class, 'show']);
-            $group->put('/{id}',            [UserController::class, 'update']);
-            $group->patch('/{id}/password', [UserController::class, 'changePassword']);
+            $group->get('/me',                [UserController::class, 'me']);
+            $group->patch('/me/credentials',  [UserController::class, 'changeCredentials']);
+            $group->get('/{id}',              [UserController::class, 'show']);
+            $group->put('/{id}',              [UserController::class, 'update']);
+            $group->patch('/{id}/password',   [UserController::class, 'changePassword']);
         });
 
         // Children — base module (always available); medical sub-route gated
@@ -151,6 +174,14 @@ return function (App $app): void {
         // Medical records — standalone creation (module: medical)
         $outer->post('/medical-records', [MedicalRecordController::class, 'create'])
               ->add($moduleMiddleware('medical'));
+
+        // Medical attachments (module: medical)
+        $outer->group('/medical-records/{id}/attachments', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
+            $group->get('',                            [MedicalAttachmentController::class, 'index']);
+            $group->post('',                           [MedicalAttachmentController::class, 'upload']);
+            $group->get('/{attachmentId}/download',    [MedicalAttachmentController::class, 'download']);
+            $group->delete('/{attachmentId}',          [MedicalAttachmentController::class, 'delete']);
+        })->add($moduleMiddleware('medical'));
 
         // Photos (module: photos)
         $outer->group('/photos', function (RouteCollectorProxy $group): void {

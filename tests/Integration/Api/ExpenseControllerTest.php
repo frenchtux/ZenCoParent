@@ -71,6 +71,7 @@ final class ExpenseControllerTest extends IntegrationTestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
+    /** @group legacy */
     public function test_create_returns_422_for_invalid_amount(): void
     {
         $response = $this->makeRequest('POST', '/expenses', body: [
@@ -96,6 +97,7 @@ final class ExpenseControllerTest extends IntegrationTestCase
         $this->assertCount(1, $list['data']);
     }
 
+    /** @group legacy */
     public function test_create_expense_with_split_ratio(): void
     {
         $userId2 = $this->createUser($this->tenantId, 'bob@example.com');
@@ -152,6 +154,7 @@ final class ExpenseControllerTest extends IntegrationTestCase
         $this->assertCount(0, $list['data']);
     }
 
+    /** @group legacy */
     public function test_filter_by_category(): void
     {
         $this->makeRequest('POST', '/expenses', body: [
