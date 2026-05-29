@@ -17,6 +17,8 @@ final class License
         private readonly string               $instanceId,
         private readonly ?\DateTimeImmutable  $revokedAt          = null,
         private readonly ?string              $machineFingerprint = null,
+        private readonly ?string              $customerEmail      = null,
+        private readonly ?\DateTimeImmutable  $expiresAt          = null,
     ) {}
 
     // ── Factory ──────────────────────────────────────────────────────────────
@@ -50,21 +52,31 @@ final class License
                                     ? new \DateTimeImmutable($data['revoked_at'])
                                     : null,
             machineFingerprint: $data['machine_fingerprint'] ?? null,
+            customerEmail:      $data['customer_email'] ?? null,
+            expiresAt:          isset($data['expires_at']) && $data['expires_at']
+                                    ? new \DateTimeImmutable($data['expires_at'])
+                                    : null,
         );
     }
 
-    public function withActivation(string $activationKey, ?string $machineFingerprint = null): self
-    {
+    public function withActivation(
+        string               $token,
+        ?string              $fingerprint  = null,
+        ?string              $customerEmail = null,
+        ?\DateTimeImmutable  $expiresAt    = null,
+    ): self {
         return new self(
             id:                 $this->id,
             installationKey:    $this->installationKey,
-            activationKey:      $activationKey,
+            activationKey:      $token,
             installedAt:        $this->installedAt,
             activatedAt:        new \DateTimeImmutable(),
             isActive:           true,
             instanceId:         $this->instanceId,
             revokedAt:          $this->revokedAt,
-            machineFingerprint: $machineFingerprint ?? $this->machineFingerprint,
+            machineFingerprint: $fingerprint ?? $this->machineFingerprint,
+            customerEmail:      $customerEmail ?? $this->customerEmail,
+            expiresAt:          $expiresAt ?? $this->expiresAt,
         );
     }
 
@@ -80,6 +92,8 @@ final class License
             instanceId:         $this->instanceId,
             revokedAt:          new \DateTimeImmutable(),
             machineFingerprint: $this->machineFingerprint,
+            customerEmail:      $this->customerEmail,
+            expiresAt:          $this->expiresAt,
         );
     }
 
@@ -96,9 +110,17 @@ final class License
         return $this->revokedAt !== null;
     }
 
+    public function isExpired(): bool
+    {
+        return $this->expiresAt !== null && $this->expiresAt < new \DateTimeImmutable();
+    }
+
     public function isLicensed(): bool
     {
-        return $this->isTrialActive() || ($this->isActive && !$this->isRevoked());
+        if ($this->isTrialActive()) {
+            return true;
+        }
+        return $this->isActive && !$this->isRevoked() && !$this->isExpired();
     }
 
     public function getTrialDaysRemaining(): int
@@ -106,9 +128,8 @@ final class License
         if (!$this->isTrialActive()) {
             return 0;
         }
-        $now      = new \DateTimeImmutable();
         $trialEnd = $this->installedAt->modify('+' . self::TRIAL_DAYS . ' days');
-        return max(0, (int) $now->diff($trialEnd)->days);
+        return max(0, (int) (new \DateTimeImmutable())->diff($trialEnd)->days);
     }
 
     // ── Getters ──────────────────────────────────────────────────────────────
@@ -122,6 +143,8 @@ final class License
     public function getInstanceId(): string                  { return $this->instanceId; }
     public function getRevokedAt(): ?\DateTimeImmutable      { return $this->revokedAt; }
     public function getMachineFingerprint(): ?string         { return $this->machineFingerprint; }
+    public function getCustomerEmail(): ?string              { return $this->customerEmail; }
+    public function getExpiresAt(): ?\DateTimeImmutable      { return $this->expiresAt; }
 
     public function toArray(): array
     {
@@ -135,6 +158,8 @@ final class License
             'is_licensed'          => $this->isLicensed(),
             'is_revoked'           => $this->isRevoked(),
             'revoked_at'           => $this->revokedAt?->format(\DateTimeInterface::ATOM),
+            'customer_email'       => $this->customerEmail,
+            'expires_at'           => $this->expiresAt?->format(\DateTimeInterface::ATOM),
         ];
     }
 }
