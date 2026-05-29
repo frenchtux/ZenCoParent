@@ -196,8 +196,11 @@
 
     body.innerHTML = events.map(ev => {
       const typeKey = (ev.type || 'autre').toLowerCase();
-      const evTime = ev.start_time || (ev.start_at ? ev.start_at.slice(11, 16) : '');
-      const timeStr = (evTime && evTime !== '00:00') ? `<span style="font-size:var(--text-xs);color:var(--color-text-muted)">${escapeHtml(evTime)}</span>` : '';
+      const evStart = ev.start_time || (ev.start_at ? ev.start_at.slice(11, 16) : '');
+      const evEnd   = ev.end_at ? ev.end_at.slice(11, 16) : '';
+      const timeStr = (evStart && evStart !== '00:00')
+        ? `<span style="font-size:var(--text-xs);color:var(--color-text-muted)">${escapeHtml(evStart)}${evEnd && evEnd !== '00:00' ? '–' + escapeHtml(evEnd) : ''}</span>`
+        : '';
       return `
         <div class="event-list-item">
           <div class="event-dot event-dot-${typeKey}" style="margin-top:4px;"></div>
@@ -306,9 +309,12 @@
     document.getElementById('event-type').value        = ev.type  || 'autre';
     // Support both API format (start_at) and legacy (start_date)
     const startAt = ev.start_at || ev.start_date || ev.date || '';
-    document.getElementById('event-date').value        = startAt.slice(0, 10);
-    document.getElementById('event-time').value        = ev.start_time || (startAt.length > 10 ? startAt.slice(11, 16) : '');
-    document.getElementById('event-child-id').value   = ev.child_id || '';
+    document.getElementById('event-date').value         = startAt.slice(0, 10);
+    document.getElementById('event-time').value         = ev.start_time || (startAt.length > 10 ? startAt.slice(11, 16) : '');
+    const endAt = ev.end_at || '';
+    document.getElementById('event-end-date').value     = endAt ? endAt.slice(0, 10) : '';
+    document.getElementById('event-end-time').value     = endAt.length > 10 ? endAt.slice(11, 16) : '';
+    document.getElementById('event-child-id').value    = ev.child_id || '';
     document.getElementById('event-description').value = ev.description || '';
     toggleReportField(ev.type || '');
     if (ev.type === 'medical') {
@@ -345,14 +351,26 @@
     const btn = document.getElementById('event-save-btn');
     setLoading(btn, true);
 
-    const dateVal = document.getElementById('event-date').value;
-    const timeVal = document.getElementById('event-time').value || '00:00';
-    const startAt = dateVal ? `${dateVal}T${timeVal}:00` : null;
+    const dateVal    = document.getElementById('event-date').value;
+    const timeVal    = document.getElementById('event-time').value || '00:00';
+    const endDateVal = document.getElementById('event-end-date').value;
+    const endTimeVal = document.getElementById('event-end-time').value || '00:00';
+    const startAt    = dateVal ? `${dateVal}T${timeVal}:00` : null;
     let endAt = null;
     if (startAt) {
-      const startDate = new Date(`${dateVal}T${timeVal}:00`);
-      startDate.setHours(startDate.getHours() + 1);
-      endAt = startDate.toISOString().slice(0, 19);
+      if (endDateVal) {
+        endAt = `${endDateVal}T${endTimeVal}:00`;
+      } else {
+        // Fallback: start + 1 hour
+        const startDate = new Date(`${dateVal}T${timeVal}:00`);
+        startDate.setHours(startDate.getHours() + 1);
+        endAt = startDate.toISOString().slice(0, 19);
+      }
+    }
+    if (startAt && endAt && endAt <= startAt) {
+      toast('La date de fin doit être postérieure à la date de début.', 'warning');
+      setLoading(btn, false);
+      return;
     }
 
     const eventType = document.getElementById('event-type').value;
