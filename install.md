@@ -9,7 +9,8 @@ Choisissez votre mode d'installation selon votre contexte :
 | Stockage fichiers | Dossier local | MinIO / S3 |
 | Cache / rate-limit | Désactivé (fichier) | Redis 7 |
 | Multi-tenant | Non (famille unique) | Oui |
-| Photos / galerie | Non | Oui |
+| Photos / galerie | Oui (module) | Oui (module) |
+| Paiements (Stripe) | Non | Oui (licence 150 € + abonnements) |
 | Licence requise | Non | Oui (30 j d'essai gratuit) |
 | Difficulté | ⭐ Débutant | ⭐⭐ Intermédiaire |
 
@@ -74,9 +75,11 @@ Il vous demande :
 
 À la fin, il :
 - Crée automatiquement le fichier `.env`
-- Applique les 13 migrations SQL sur la base SQLite
+- Applique les 23 migrations SQL sur la base SQLite
 - Crée le tenant et le compte administrateur
 - Affiche un bloc de configuration Nginx prêt à l'emploi
+
+> **Premier login** : un changement obligatoire d'email et de mot de passe est imposé (modal bloquant) pour le compte admin initial.
 
 > **Supprimez `install.php` après l'installation** — il n'est plus nécessaire et expose les chemins système.
 
@@ -289,30 +292,46 @@ Attendez que PostgreSQL soit prêt (le healthcheck le gère automatiquement, ~10
 docker compose logs postgres --tail=10
 ```
 
-### Étape 4 — Appliquer les migrations
+### Étape 4 — Migrations et seed (automatiques)
+
+Le `docker-compose.yml` exécute automatiquement, à chaque `up`, deux conteneurs d'init :
+
+1. **`migrate`** — applique les 23 migrations PostgreSQL (table `app_license` incluse)
+2. **`seed`** — crée le tenant `zencoparent` + l'admin par défaut
+
+Pour rejouer manuellement les migrations si besoin :
 
 ```bash
 docker compose exec php php database/migrations/migrate.php
 ```
 
-Les 13 migrations sont appliquées dans l'ordre, y compris la table `app_license` (migration 013).
+### Étape 5 — Premier compte administrateur
 
-### Étape 5 — Créer le premier compte administrateur
+L'admin par défaut est créé automatiquement par le conteneur `seed` :
 
-Le premier administrateur s'inscrit via l'API — cela crée simultanément le premier tenant :
+| Champ | Valeur |
+|---|---|
+| Tenant | `zencoparent` |
+| Email | `admin@zencoparent.local` |
+| Mot de passe | `Admin1234!` |
+
+> **Au premier login, un changement obligatoire d'email et de mot de passe est imposé.** Définissez immédiatement des identifiants forts.
+
+**Inscription publique** — `/frontend/register.html` (ou l'API ci-dessous) crée un **nouveau tenant familial** dont l'utilisateur est **parent** (jamais admin). Champs requis : `family_name`, `email`, `password`, `first_name`, `last_name`.
 
 ```bash
 curl -s -X POST https://votre-domaine.com/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@votre-domaine.com",
-    "password": "MotDePasseAdmin!",
-    "first_name": "Admin",
-    "last_name": "Principal",
-    "tenant_name": "Mon Organisation",
-    "role": "admin"
+    "family_name": "Famille Dupont",
+    "email": "parent@exemple.com",
+    "password": "MotDePasseFort!",
+    "first_name": "Marie",
+    "last_name": "Dupont"
   }' | python3 -m json.tool
 ```
+
+Les comptes **admin** supplémentaires se créent depuis l'interface admin (`/frontend/utilisateurs.html`).
 
 ### Étape 6 — Configurer MinIO
 
@@ -681,6 +700,19 @@ docker compose exec php chown -R www-data:www-data /var/www/html/storage
 | `GOOGLE_CLIENT_ID` | Les deux | Non | — | OAuth Google (optionnel) |
 | `GOOGLE_CLIENT_SECRET` | Les deux | Non | — | OAuth Google (optionnel) |
 | `GOOGLE_REDIRECT_URI` | Les deux | Non | — | Callback OAuth Google |
+| `MAIL_HOST` | Les deux | Non | — | Serveur SMTP global (surchargeable par tenant via l'admin) |
+| `MAIL_PORT` | Les deux | Non | `587` | Port SMTP |
+| `MAIL_ENCRYPTION` | Les deux | Non | `tls` | `tls` ou `ssl` |
+| `MAIL_USERNAME` | Les deux | Non | — | Identifiant SMTP |
+| `MAIL_PASSWORD` | Les deux | Non | — | Mot de passe SMTP |
+| `MAIL_FROM_ADDRESS` | Les deux | Non | — | Adresse expéditeur |
+| `MAIL_FROM_NAME` | Les deux | Non | `ZenCoParent` | Nom expéditeur |
+| `STRIPE_SECRET_KEY` | SaaS | Non | — | Clé secrète Stripe (`sk_...`) |
+| `STRIPE_WEBHOOK_SECRET` | SaaS | Non | — | Secret de vérification du webhook |
+| `STRIPE_INSTALLATION_KEY_PRICE_ID` | SaaS | Non | — | Price ID pour l'achat d'une clé d'installation |
+| `APP_PORT` | Les deux | Non | `80` | Port hôte exposé par nginx (ex: `8061` en dev) |
+
+> **Configuration SMTP par tenant** : chaque administrateur peut définir son propre serveur SMTP depuis `/frontend/admin-parametres.html`. La config stockée en base (mot de passe chiffré AES-256) prime sur les variables `MAIL_*`. Un bouton « envoyer un test » permet de valider la configuration.
 
 ---
 
