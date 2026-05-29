@@ -102,7 +102,7 @@
 
     } catch (e) {
       _allRecords = [];
-      showToast('Erreur lors du chargement des antécédents.', 'error');
+      toast('Erreur lors du chargement des antécédents.', 'error');
     }
 
     renderTable();
@@ -192,7 +192,7 @@
       const dateVal     = document.getElementById('record-date').value;
 
       if (!childId || !report) {
-        showToast('Veuillez remplir les champs obligatoires.', 'warning');
+        toast('Veuillez remplir les champs obligatoires.', 'warning');
         return;
       }
 
@@ -204,12 +204,12 @@
         btn.disabled = true;
         btn.textContent = 'Enregistrement…';
         await api.post('/medical-records', body);
-        showToast('Compte-rendu ajouté.', 'success');
+        toast('Compte-rendu ajouté.', 'success');
         closeModal('record-modal');
         form.reset();
         await loadAllRecords();
       } catch (err) {
-        showToast(err.message || 'Erreur lors de la création.', 'error');
+        toast(err.message || 'Erreur lors de la création.', 'error');
       } finally {
         btn.disabled = false;
         btn.textContent = 'Ajouter';
@@ -281,7 +281,7 @@
     btn.addEventListener('click', async () => {
       const fileInput = document.getElementById('attachment-file-input');
       if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        showToast('Veuillez sélectionner un fichier.', 'warning');
+        toast('Veuillez sélectionner un fichier.', 'warning');
         return;
       }
 
@@ -319,11 +319,11 @@
           throw new Error(msg);
         }
 
-        showToast('Pièce jointe ajoutée.', 'success');
+        toast('Pièce jointe ajoutée.', 'success');
         fileInput.value = '';
         await refreshAttachments(_currentRecordId);
       } catch (err) {
-        showToast(err.message || 'Erreur lors de l\'upload.', 'error');
+        toast(err.message || 'Erreur lors de l\'upload.', 'error');
       } finally {
         btn.disabled = false;
         btn.textContent = 'Envoyer';
@@ -339,10 +339,10 @@
 
     try {
       await api.del(`/medical-records/${_currentRecordId}/attachments/${attachmentId}`);
-      showToast('Pièce jointe supprimée.', 'success');
+      toast('Pièce jointe supprimée.', 'success');
       await refreshAttachments(_currentRecordId);
     } catch (err) {
-      showToast(err.message || 'Erreur lors de la suppression.', 'error');
+      toast(err.message || 'Erreur lors de la suppression.', 'error');
     }
   }
 
@@ -353,15 +353,15 @@
 
     try {
       await api.del(`/medical-records/${recordId}`);
-      showToast('Compte-rendu supprimé.', 'success');
+      toast('Compte-rendu supprimé.', 'success');
       _allRecords = _allRecords.filter(r => String(r.id) !== String(recordId));
       renderTable();
     } catch (err) {
       // If endpoint doesn't exist (404) or not supported, inform user
       if (err.message && (err.message.includes('404') || err.message.includes('405') || err.message.toLowerCase().includes('not found'))) {
-        showToast('La suppression n\'est pas disponible pour l\'instant.', 'warning');
+        toast('La suppression n\'est pas disponible pour l\'instant.', 'warning');
       } else {
-        showToast(err.message || 'Erreur lors de la suppression.', 'error');
+        toast(err.message || 'Erreur lors de la suppression.', 'error');
       }
     }
   }

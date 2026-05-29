@@ -67,4 +67,10 @@ final class SQLiteMedicalRecordRepository extends AbstractRepository implements 
             'created_at'   => $now,
         ]);
     }
+
+    public function delete(string $id): void
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM medical_records WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+    }
 }
