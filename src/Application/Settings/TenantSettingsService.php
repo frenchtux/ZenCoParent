@@ -9,7 +9,14 @@ namespace ZenCoParent\Application\Settings;
  */
 final class TenantSettingsService
 {
-    private const SENSITIVE_KEYS = ['mail_password'];
+    /** @deprecated use getSystemSetting/setSystemSetting — kept for backwards compat */
+    public const SYSTEM_TENANT = '__system__';
+
+    private const SENSITIVE_KEYS = [
+        'mail_password',
+        'oauth_google_client_secret',
+        'paypal_client_secret',
+    ];
 
     // SMTP keys exposed through the API
     public const MAIL_KEYS = [
@@ -20,6 +27,31 @@ final class TenantSettingsService
         'mail_password',
         'mail_from_address',
         'mail_from_name',
+    ];
+
+    public const OAUTH_KEYS = [
+        'oauth_google_enabled',
+        'oauth_google_client_id',
+        'oauth_google_client_secret',
+    ];
+
+    public const APP_KEYS = [
+        'app_name',
+        'app_url',
+    ];
+
+    public const SECURITY_KEYS = [
+        'jwt_expiry',
+        'jwt_refresh_expiry',
+        'rate_limit_requests',
+        'rate_limit_window',
+    ];
+
+    public const PAYMENT_KEYS = [
+        'paypal_client_id',
+        'paypal_client_secret',
+        'paypal_mode',
+        'paypal_webhook_id',
     ];
 
     public function __construct(
@@ -124,7 +156,176 @@ final class TenantSettingsService
         );
     }
 
+    // ── OAuth (system-level) ─────────────────────────────────────────────────
+
+    public function getOAuthConfig(): array
+    {
+        return $this->getSystemGroup(self::OAUTH_KEYS, mask: ['oauth_google_client_secret']);
+    }
+
+    public function setOAuthConfig(array $data): void
+    {
+        $this->setSystemGroup(self::OAUTH_KEYS, $data, mask: ['oauth_google_client_secret']);
+    }
+
+    // ── App (system-level) ───────────────────────────────────────────────────
+
+    public function getAppConfig(): array
+    {
+        return $this->getSystemGroup(self::APP_KEYS);
+    }
+
+    public function setAppConfig(array $data): void
+    {
+        $this->setSystemGroup(self::APP_KEYS, $data);
+    }
+
+    // ── Security (system-level) ──────────────────────────────────────────────
+
+    public function getSecurityConfig(): array
+    {
+        return $this->getSystemGroup(self::SECURITY_KEYS);
+    }
+
+    public function setSecurityConfig(array $data): void
+    {
+        $this->setSystemGroup(self::SECURITY_KEYS, $data);
+    }
+
+    // ── Payment (system-level) ───────────────────────────────────────────────
+
+    public function getPaymentConfig(): array
+    {
+        return $this->getSystemGroup(self::PAYMENT_KEYS, mask: ['paypal_client_secret']);
+    }
+
+    public function setPaymentConfig(array $data): void
+    {
+        $this->setSystemGroup(self::PAYMENT_KEYS, $data, mask: ['paypal_client_secret']);
+    }
+
+    /** Read a single system-level setting from app_settings. */
+    public function getSystemSetting(string $key): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT value FROM app_settings WHERE key = :key');
+        $stmt->execute(['key' => $key]);
+        $row = $stmt->fetchColumn();
+        if ($row === false || $row === null) {
+            return null;
+        }
+        return in_array($key, self::SENSITIVE_KEYS, true) ? $this->decrypt((string) $row) : (string) $row;
+    }
+
     // ── Internals ─────────────────────────────────────────────────────────────
+
+    private function getSystemGroup(array $keys, array $mask = []): array
+    {
+        $placeholders = implode(',', array_map(fn($i) => ":k{$i}", array_keys($keys)));
+        $params = [];
+        foreach ($keys as $i => $k) {
+            $params["k{$i}"] = $k;
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT key, value FROM app_settings WHERE key IN ({$placeholders})"
+        );
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
+
+        $config = [];
+        foreach ($keys as $k) {
+            $raw = $rows[$k] ?? null;
+            if ($raw === null) {
+                $config[$k] = null;
+            } elseif (in_array($k, $mask, true)) {
+                $config[$k] = '••••••••';
+            } elseif (in_array($k, self::SENSITIVE_KEYS, true)) {
+                $config[$k] = $this->decrypt($raw);
+            } else {
+                $config[$k] = $raw;
+            }
+        }
+        return $config;
+    }
+
+    private function setSystemGroup(array $keys, array $data, array $mask = []): void
+    {
+        foreach ($keys as $k) {
+            if (!array_key_exists($k, $data)) {
+                continue;
+            }
+            $v = $data[$k];
+            if (in_array($k, $mask, true) && $v === '••••••••') {
+                continue;
+            }
+            $this->upsertSystem($k, ($v === '' || $v === null) ? null : (string) $v);
+        }
+    }
+
+    private function upsertSystem(string $key, ?string $value): void
+    {
+        if ($value === null) {
+            $this->pdo->prepare('DELETE FROM app_settings WHERE key = :key')
+                ->execute(['key' => $key]);
+            return;
+        }
+
+        $stored = in_array($key, self::SENSITIVE_KEYS, true) ? $this->encrypt($value) : $value;
+        $now    = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        $upd = $this->pdo->prepare(
+            'UPDATE app_settings SET value = :val, updated_at = :now WHERE key = :key'
+        );
+        $upd->execute(['val' => $stored, 'now' => $now, 'key' => $key]);
+
+        if ($upd->rowCount() === 0) {
+            $this->pdo->prepare(
+                'INSERT INTO app_settings (key, value, created_at, updated_at) VALUES (:key, :val, :now, :now)'
+            )->execute(['key' => $key, 'val' => $stored, 'now' => $now]);
+        }
+    }
+
+    private function getGroup(string $tenantId, array $keys, array $mask = []): array
+    {
+        $placeholders = implode(',', array_map(fn($i) => ":k{$i}", array_keys($keys)));
+        $params = ['tid' => $tenantId];
+        foreach ($keys as $i => $k) {
+            $params["k{$i}"] = $k;
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT key, value FROM tenant_settings WHERE tenant_id = :tid AND key IN ({$placeholders})"
+        );
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
+
+        $config = [];
+        foreach ($keys as $k) {
+            $raw = $rows[$k] ?? null;
+            if ($raw === null) {
+                $config[$k] = null;
+            } elseif (in_array($k, $mask, true)) {
+                $config[$k] = '••••••••';
+            } elseif (in_array($k, self::SENSITIVE_KEYS, true)) {
+                $config[$k] = $this->decrypt($raw);
+            } else {
+                $config[$k] = $raw;
+            }
+        }
+        return $config;
+    }
+
+    private function setGroup(string $tenantId, array $keys, array $data, array $mask = []): void
+    {
+        foreach ($keys as $k) {
+            if (!array_key_exists($k, $data)) {
+                continue;
+            }
+            $v = $data[$k];
+            if (in_array($k, $mask, true) && $v === '••••••••') {
+                continue; // keep existing value
+            }
+            $this->set($tenantId, $k, ($v === '' || $v === null) ? null : (string) $v);
+        }
+    }
 
     private function upsert(string $tenantId, string $key, string $value): void
     {

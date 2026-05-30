@@ -6,9 +6,12 @@ namespace ZenCoParent\Api\Controllers;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use ZenCoParent\Api\Response\ApiResponse;
+use ZenCoParent\Application\Payment\PaypalWebhookHandler;
 use ZenCoParent\Application\Payment\StripeWebhookHandler;
+use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
 use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
 use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
+use ZenCoParent\Infrastructure\Payment\PaypalService;
 use ZenCoParent\Infrastructure\Payment\StripeService;
 
 final class PaymentController
@@ -18,6 +21,9 @@ final class PaymentController
         private readonly PlanRepositoryInterface         $planRepo,
         private readonly SubscriptionRepositoryInterface $subscriptionRepo,
         private readonly StripeWebhookHandler            $webhookHandler,
+        private readonly PaypalService                   $paypalService,
+        private readonly PaypalWebhookHandler            $paypalWebhookHandler,
+        private readonly PaymentRepositoryInterface      $paymentRepo,
     ) {}
 
     /** POST /payments/checkout/installation-key — unauthenticated */
@@ -135,6 +141,111 @@ final class PaymentController
 
         $url = $this->stripeService->createPortalSession($sub->getStripeCustomerId());
         return ApiResponse::success($response, ['url' => $url]);
+    }
+
+    // ── PayPal one-shot endpoints ─────────────────────────────────────────────
+
+    /** POST /payments/checkout/installation-key/paypal — unauthenticated */
+    public function checkoutInstallationKeyPaypal(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        if (!$this->paypalService->isConfigured()) {
+            return ApiResponse::error($response, 'PayPal non configuré.', 503);
+        }
+        $result = $this->paypalService->createInstallationKeyOrder();
+        return ApiResponse::success($response, $result);
+    }
+
+    /** POST /payments/checkout/license/paypal — admin */
+    public function checkoutLicensePaypal(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        if (!$this->paypalService->isConfigured()) {
+            return ApiResponse::error($response, 'PayPal non configuré.', 503);
+        }
+        $tenantId = (string) $request->getAttribute('tenantId');
+        $result   = $this->paypalService->createSaasLicenseOrder($tenantId);
+        return ApiResponse::success($response, $result);
+    }
+
+    /** POST /payments/capture/paypal — called after user returns from PayPal */
+    public function capturePaypal(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        $body    = (array) $request->getParsedBody();
+        $orderId = trim((string) ($body['order_id'] ?? ''));
+
+        if ($orderId === '') {
+            return ApiResponse::error($response, 'order_id est requis.', 400);
+        }
+
+        $payment = $this->paymentRepo->findByPaypalOrderId($orderId);
+        if ($payment === null) {
+            return ApiResponse::error($response, 'Commande introuvable.', 404);
+        }
+
+        try {
+            $capture = $this->paypalService->captureOrder($orderId);
+        } catch (\Throwable $e) {
+            return ApiResponse::error($response, 'Capture PayPal échouée : ' . $e->getMessage(), 502);
+        }
+
+        if (($capture['status'] ?? '') !== 'COMPLETED') {
+            return ApiResponse::error($response, 'Le paiement PayPal n\'a pas abouti.', 402);
+        }
+
+        // Trigger the same business logic as the webhook
+        $this->paypalWebhookHandler->handleCaptureCompleted([
+            'id'                  => $orderId,
+            'supplementary_data'  => ['related_ids' => ['order_id' => $orderId]],
+            'amount'              => [
+                'value'         => number_format($capture['amount_cents'] / 100, 2, '.', ''),
+                'currency_code' => strtoupper($capture['currency']),
+            ],
+        ]);
+
+        return ApiResponse::success($response, ['status' => 'succeeded', 'order_id' => $orderId]);
+    }
+
+    /** POST /payments/webhook/paypal — PayPal webhook (no auth, signature verified) */
+    public function webhookPaypal(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args,
+    ): ResponseInterface {
+        $payload = (string) $request->getBody();
+        $headers = $request->getHeaders();
+
+        $verified = $this->paypalService->verifyWebhook(
+            payload:         $payload,
+            transmissionId:  $request->getHeaderLine('PAYPAL-TRANSMISSION-ID'),
+            transmissionTime: $request->getHeaderLine('PAYPAL-TRANSMISSION-TIME'),
+            certUrl:         $request->getHeaderLine('PAYPAL-CERT-URL'),
+            authAlgo:        $request->getHeaderLine('PAYPAL-AUTH-ALGO'),
+            transmissionSig: $request->getHeaderLine('PAYPAL-TRANSMISSION-SIG'),
+        );
+
+        if (!$verified) {
+            $response->getBody()->write(json_encode(['error' => 'Invalid signature']));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+
+        $event    = json_decode($payload, true) ?? [];
+        $type     = $event['event_type'] ?? '';
+        $resource = $event['resource']   ?? [];
+
+        if ($type === 'PAYMENT.CAPTURE.COMPLETED') {
+            $this->paypalWebhookHandler->handleCaptureCompleted($resource);
+        }
+
+        $response->getBody()->write(json_encode(['received' => true]));
+        return $response->withStatus(200)->withHeader('Content-Type', 'application/json');
     }
 
     /** POST /payments/webhook — Stripe webhook (no auth, signature verified) */

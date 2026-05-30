@@ -6,6 +6,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use ZenCoParent\Application\Admin\AdminService;
 use ZenCoParent\Application\License\LicenseService;
+use ZenCoParent\Application\Payment\PaypalWebhookHandler;
 use ZenCoParent\Application\Payment\StripeWebhookHandler;
 use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Application\User\DeleteAccountHandler;
@@ -269,14 +270,26 @@ return function (ContainerBuilder $containerBuilder) {
             return new JWTService($authConfig['jwt_secret'], $authConfig['jwt_expiry']);
         },
 
-        // Google OAuth
-        GoogleOAuthService::class => function () {
+        // Google OAuth — DB settings take precedence over env
+        GoogleOAuthService::class => function (ContainerInterface $c) {
+            $settings   = $c->get(TenantSettingsService::class);
             $authConfig = require __DIR__ . '/../Config/auth.php';
-            return new GoogleOAuthService(
-                $authConfig['google']['client_id'],
-                $authConfig['google']['client_secret'],
-                $authConfig['google']['redirect_uri'],
-            );
+
+            $clientId     = $settings->getSystemSetting('oauth_google_client_id')
+                            ?? $authConfig['google']['client_id'];
+            $clientSecret = $settings->getSystemSetting('oauth_google_client_secret')
+                            ?? $authConfig['google']['client_secret'];
+
+            // redirect_uri: env has priority (must match Google Console exactly);
+            // if env is empty, derive from DB app_url or APP_URL env var.
+            if ($authConfig['google']['redirect_uri'] !== '') {
+                $redirectUri = $authConfig['google']['redirect_uri'];
+            } else {
+                $appUrl      = rtrim($settings->getSystemSetting('app_url') ?? ($_ENV['APP_URL'] ?? 'http://localhost'), '/');
+                $redirectUri = $appUrl . '/auth/oauth/google/callback';
+            }
+
+            return new GoogleOAuthService($clientId, $clientSecret, $redirectUri);
         },
 
         // Redis
@@ -307,7 +320,9 @@ return function (ContainerBuilder $containerBuilder) {
 
         \ZenCoParent\Api\Controllers\LicenseController::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Api\Controllers\LicenseController(
-                $c->get(LicenseService::class)
+                $c->get(LicenseService::class),
+                $c->get(TenantSettingsService::class),
+                $c->get(MailerInterface::class),
             );
         },
 
@@ -348,6 +363,33 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
 
+        \ZenCoParent\Infrastructure\Payment\PaypalService::class => function (ContainerInterface $c) {
+            $settings = $c->get(TenantSettingsService::class);
+
+            $clientId   = $settings->getSystemSetting('paypal_client_id')     ?? ($_ENV['PAYPAL_CLIENT_ID']     ?? '');
+            $secret     = $settings->getSystemSetting('paypal_client_secret') ?? ($_ENV['PAYPAL_CLIENT_SECRET'] ?? '');
+            $mode       = $settings->getSystemSetting('paypal_mode')          ?? ($_ENV['PAYPAL_MODE']          ?? 'sandbox');
+            $webhookId  = $settings->getSystemSetting('paypal_webhook_id')    ?? ($_ENV['PAYPAL_WEBHOOK_ID']    ?? '');
+            $appUrl     = rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/');
+
+            return new \ZenCoParent\Infrastructure\Payment\PaypalService(
+                clientId:    $clientId,
+                clientSecret: $secret,
+                mode:        $mode,
+                webhookId:   $webhookId,
+                appUrl:      $appUrl,
+                paymentRepo: $c->get(PaymentRepositoryInterface::class),
+            );
+        },
+
+        PaypalWebhookHandler::class => function (ContainerInterface $c) {
+            return new PaypalWebhookHandler(
+                $c->get(PaymentRepositoryInterface::class),
+                $c->get(LoggerInterface::class),
+                $c->get(TenantSettingsService::class),
+            );
+        },
+
         \ZenCoParent\Infrastructure\Payment\StripeService::class => function (ContainerInterface $c) {
             return new \ZenCoParent\Infrastructure\Payment\StripeService(
                 secretKey:              $_ENV['STRIPE_SECRET_KEY'] ?? '',
@@ -365,6 +407,9 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(PlanRepositoryInterface::class),
                 $c->get(SubscriptionRepositoryInterface::class),
                 $c->get(StripeWebhookHandler::class),
+                $c->get(\ZenCoParent\Infrastructure\Payment\PaypalService::class),
+                $c->get(PaypalWebhookHandler::class),
+                $c->get(PaymentRepositoryInterface::class),
             );
         },
 

@@ -106,6 +106,95 @@ final class SmtpMailer implements MailerInterface
         );
     }
 
+    public function sendLicenseRequestToVendor(
+        string $vendorEmail,
+        string $installationKey,
+        string $adminEmail,
+        string $instanceId,
+    ): void {
+        $key      = htmlspecialchars($installationKey, ENT_QUOTES, 'UTF-8');
+        $email    = htmlspecialchars($adminEmail,      ENT_QUOTES, 'UTF-8');
+        $instance = htmlspecialchars($instanceId,      ENT_QUOTES, 'UTF-8');
+        $date     = (new \DateTimeImmutable())->format('d/m/Y H:i');
+
+        $this->send(
+            to:      $vendorEmail,
+            subject: "Demande de licence ZenCoParent — {$installationKey}",
+            html:    $this->layout(
+                title:   'Demande de licence',
+                heading: 'Nouvelle demande de licence',
+                body:    "<p>Une nouvelle demande de licence a été reçue.</p>
+                          <table style=\"width:100%;border-collapse:collapse;margin:16px 0\">
+                            <tr style=\"border-bottom:1px solid #e5e7eb\">
+                              <td style=\"padding:8px 0;color:#6b7280\">Date</td>
+                              <td style=\"padding:8px 0;text-align:right\">{$date}</td>
+                            </tr>
+                            <tr style=\"border-bottom:1px solid #e5e7eb\">
+                              <td style=\"padding:8px 0;color:#6b7280\">Clé d'installation</td>
+                              <td style=\"padding:8px 0;text-align:right;font-family:monospace;font-weight:700\">{$key}</td>
+                            </tr>
+                            <tr style=\"border-bottom:1px solid #e5e7eb\">
+                              <td style=\"padding:8px 0;color:#6b7280\">Email admin</td>
+                              <td style=\"padding:8px 0;text-align:right\">{$email}</td>
+                            </tr>
+                            <tr>
+                              <td style=\"padding:8px 0;color:#6b7280\">Instance ID</td>
+                              <td style=\"padding:8px 0;text-align:right;font-family:monospace\">{$instance}</td>
+                            </tr>
+                          </table>
+                          <p style=\"color:#6b7280;font-size:.85em\">
+                            Répondre à cet email avec la clé d'activation une fois le paiement confirmé.
+                          </p>",
+            ),
+            text: "Demande de licence\nClé: {$installationKey}\nEmail: {$adminEmail}\nInstance: {$instanceId}\nDate: {$date}",
+        );
+    }
+
+    public function sendLicensePaymentInstructions(
+        string $to,
+        string $installationKey,
+        string $paypalEmail,
+        string $priceLabel,
+    ): void {
+        $key     = htmlspecialchars($installationKey, ENT_QUOTES, 'UTF-8');
+        $paypal  = htmlspecialchars($paypalEmail,     ENT_QUOTES, 'UTF-8');
+        $price   = htmlspecialchars($priceLabel,      ENT_QUOTES, 'UTF-8');
+
+        $this->send(
+            to:      $to,
+            subject: 'Instructions de paiement — Licence ZenCoParent',
+            html:    $this->layout(
+                title:   'Instructions de paiement',
+                heading: 'Votre demande de licence a été envoyée',
+                body:    "<p>Merci ! Votre demande a bien été transmise.</p>
+                          <p>Pour finaliser l'activation, effectuez un virement PayPal selon les instructions ci-dessous :</p>
+                          <table style=\"width:100%;border-collapse:collapse;margin:16px 0\">
+                            <tr style=\"border-bottom:1px solid #e5e7eb\">
+                              <td style=\"padding:8px 0;color:#6b7280\">Adresse PayPal</td>
+                              <td style=\"padding:8px 0;text-align:right;font-weight:700\">{$paypal}</td>
+                            </tr>
+                            <tr style=\"border-bottom:1px solid #e5e7eb\">
+                              <td style=\"padding:8px 0;color:#6b7280\">Montant</td>
+                              <td style=\"padding:8px 0;text-align:right;font-weight:700\">{$price}</td>
+                            </tr>
+                            <tr>
+                              <td style=\"padding:8px 0;color:#6b7280\">Référence à indiquer</td>
+                              <td style=\"padding:8px 0;text-align:right;font-family:monospace;font-weight:700\">{$key}</td>
+                            </tr>
+                          </table>
+                          <p><strong>Important :</strong> indiquez votre clé d'installation
+                          (<code style=\"background:#f3f4f6;padding:2px 6px;border-radius:4px\">{$key}</code>)
+                          en note dans votre virement PayPal.</p>
+                          <p>Vous recevrez votre clé d'activation par email sous 24 h (jours ouvrés)
+                          après confirmation du paiement.</p>
+                          <p style=\"color:#6b7280;font-size:.85em\">
+                            Une question ? Répondez directement à cet email.
+                          </p>",
+            ),
+            text: "Demande envoyée.\nPayPal: {$paypalEmail}\nMontant: {$priceLabel}\nRéférence: {$installationKey}\nVous recevrez votre clé d'activation sous 24h.",
+        );
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private function send(string $to, string $subject, string $html, string $text): void

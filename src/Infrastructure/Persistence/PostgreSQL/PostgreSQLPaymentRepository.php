@@ -27,6 +27,16 @@ final class PostgreSQLPaymentRepository extends AbstractRepository implements Pa
         return $row !== false ? Payment::fromArray($row) : null;
     }
 
+    public function findByPaypalOrderId(string $orderId): ?Payment
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM payments WHERE paypal_order_id = :oid'
+        );
+        $stmt->execute(['oid' => $orderId]);
+        $row = $stmt->fetch();
+        return $row !== false ? Payment::fromArray($row) : null;
+    }
+
     public function findByTenantId(string $tenantId, int $limit = 50): array
     {
         $stmt = $this->pdo->prepare(
@@ -58,10 +68,10 @@ final class PostgreSQLPaymentRepository extends AbstractRepository implements Pa
         $stmt = $this->pdo->prepare(
             'INSERT INTO payments
                 (id, tenant_id, stripe_payment_intent_id, stripe_invoice_id, stripe_session_id,
-                 type, amount_cents, currency, status, metadata, paid_at, created_at)
+                 paypal_order_id, type, amount_cents, currency, status, metadata, paid_at, created_at)
              VALUES
                 (:id, :tenant_id, :stripe_payment_intent_id, :stripe_invoice_id, :stripe_session_id,
-                 :type, :amount_cents, :currency, :status, :metadata, :paid_at, NOW())'
+                 :paypal_order_id, :type, :amount_cents, :currency, :status, :metadata, :paid_at, NOW())'
         );
         $stmt->execute([
             'id'                       => $payment->getId(),
@@ -69,6 +79,7 @@ final class PostgreSQLPaymentRepository extends AbstractRepository implements Pa
             'stripe_payment_intent_id' => $payment->getStripePaymentIntentId(),
             'stripe_invoice_id'        => $payment->getStripeInvoiceId(),
             'stripe_session_id'        => $payment->getStripeSessionId(),
+            'paypal_order_id'          => $payment->getPaypalOrderId(),
             'type'                     => $payment->getType(),
             'amount_cents'             => $payment->getAmountCents(),
             'currency'                 => $payment->getCurrency(),
