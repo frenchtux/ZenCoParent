@@ -153,12 +153,12 @@ final class SmtpMailer implements MailerInterface
     public function sendLicensePaymentInstructions(
         string $to,
         string $installationKey,
-        string $paypalEmail,
+        string $purchaseUrl,
         string $priceLabel,
     ): void {
-        $key     = htmlspecialchars($installationKey, ENT_QUOTES, 'UTF-8');
-        $paypal  = htmlspecialchars($paypalEmail,     ENT_QUOTES, 'UTF-8');
-        $price   = htmlspecialchars($priceLabel,      ENT_QUOTES, 'UTF-8');
+        $key   = htmlspecialchars($installationKey, ENT_QUOTES, 'UTF-8');
+        $url   = htmlspecialchars($purchaseUrl,     ENT_QUOTES, 'UTF-8');
+        $price = htmlspecialchars($priceLabel,      ENT_QUOTES, 'UTF-8');
 
         $this->send(
             to:      $to,
@@ -167,31 +167,38 @@ final class SmtpMailer implements MailerInterface
                 title:   'Instructions de paiement',
                 heading: 'Votre demande de licence a été envoyée',
                 body:    "<p>Merci ! Votre demande a bien été transmise.</p>
-                          <p>Pour finaliser l'activation, effectuez un virement PayPal selon les instructions ci-dessous :</p>
+                          <p>Pour finaliser l'activation de votre licence, cliquez sur le bouton
+                          ci-dessous et réglez <strong>{$price}</strong> via PayPal.</p>
+                          <p style=\"margin:28px 0;text-align:center\">
+                            <a href=\"{$url}\" style=\"background:#6366f1;color:#fff;padding:14px 32px;
+                               border-radius:8px;text-decoration:none;font-weight:700;font-size:1rem\">
+                              Payer ma licence →
+                            </a>
+                          </p>
+                          <div style=\"background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;
+                                      padding:14px 16px;font-size:.88rem;color:#92400e;margin:20px 0\">
+                            <strong>⚠️ Important :</strong> connectez-vous à PayPal avec
+                            <strong>{$to}</strong> (cette adresse email). C'est ce qui permet
+                            d'associer votre paiement à votre demande automatiquement.
+                          </div>
                           <table style=\"width:100%;border-collapse:collapse;margin:16px 0\">
-                            <tr style=\"border-bottom:1px solid #e5e7eb\">
-                              <td style=\"padding:8px 0;color:#6b7280\">Adresse PayPal</td>
-                              <td style=\"padding:8px 0;text-align:right;font-weight:700\">{$paypal}</td>
-                            </tr>
                             <tr style=\"border-bottom:1px solid #e5e7eb\">
                               <td style=\"padding:8px 0;color:#6b7280\">Montant</td>
                               <td style=\"padding:8px 0;text-align:right;font-weight:700\">{$price}</td>
                             </tr>
                             <tr>
-                              <td style=\"padding:8px 0;color:#6b7280\">Référence à indiquer</td>
-                              <td style=\"padding:8px 0;text-align:right;font-family:monospace;font-weight:700\">{$key}</td>
+                              <td style=\"padding:8px 0;color:#6b7280\">Votre clé d'installation</td>
+                              <td style=\"padding:8px 0;text-align:right;font-family:monospace;
+                                          font-weight:700;font-size:.9rem\">{$key}</td>
                             </tr>
                           </table>
-                          <p><strong>Important :</strong> indiquez votre clé d'installation
-                          (<code style=\"background:#f3f4f6;padding:2px 6px;border-radius:4px\">{$key}</code>)
-                          en note dans votre virement PayPal.</p>
                           <p>Vous recevrez votre clé d'activation par email sous 24 h (jours ouvrés)
                           après confirmation du paiement.</p>
                           <p style=\"color:#6b7280;font-size:.85em\">
                             Une question ? Répondez directement à cet email.
                           </p>",
             ),
-            text: "Demande envoyée.\nPayPal: {$paypalEmail}\nMontant: {$priceLabel}\nRéférence: {$installationKey}\nVous recevrez votre clé d'activation sous 24h.",
+            text: "Demande envoyée.\nCliquez ici pour payer : {$purchaseUrl}\nConnectez-vous avec : {$to}\nMontant : {$priceLabel}\nVous recevrez votre clé d'activation sous 24h.",
         );
     }
 
