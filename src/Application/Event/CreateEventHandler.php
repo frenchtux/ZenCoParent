@@ -32,7 +32,8 @@ final class CreateEventHandler
         // Validate type is a valid EventType
         $eventType = EventType::tryFrom($command->type);
         if ($eventType === null) {
-            throw ValidationException::withErrors(['type' => 'Invalid event type. Must be one of: custody, activity, medical.']);
+            $allowed = implode(', ', array_column(EventType::cases(), 'value'));
+            throw ValidationException::withErrors(['type' => "Invalid event type. Must be one of: {$allowed}."]);
         }
 
         // Validate startAt is parseable

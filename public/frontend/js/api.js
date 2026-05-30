@@ -57,11 +57,15 @@
       throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion.');
     }
 
-    // Handle 401 — redirect to login
+    // Handle 401 — redirect to login, except on auth endpoints (login/register)
     if (response.status === 401) {
-      sessionStorage.removeItem('zenco_user');
-      window.location.href = '/frontend/index.html';
-      return null;
+      const isAuthEndpoint = path.startsWith('/auth/login') || path.startsWith('/auth/register');
+      if (!isAuthEndpoint) {
+        sessionStorage.removeItem('zenco_user');
+        window.location.href = '/frontend/index.html';
+        return null;
+      }
+      // Let the caller's catch block handle auth errors on login/register
     }
 
     // 204 No Content
