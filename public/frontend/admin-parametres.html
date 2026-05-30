@@ -83,6 +83,115 @@
         </div>
       </div>
 
+      <!-- OAuth Google -->
+      <div class="card" id="oauth-card" style="max-width:640px;margin-top:var(--space-6);">
+        <div class="card-header">
+          <h2 class="card-title">Connexion Google (OAuth)</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Permet aux utilisateurs de se connecter avec leur compte Google.
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="oauth-alert" style="display:none;margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);font-size:var(--text-sm);"></div>
+          <form id="oauth-form" novalidate>
+            <div class="form-group" style="margin-bottom:var(--space-4);">
+              <label class="form-label" style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                <input type="checkbox" id="oauth-enabled" style="width:16px;height:16px;" />
+                Activer la connexion Google
+              </label>
+            </div>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="oauth-client-id">Client ID</label>
+                <input class="form-input" type="text" id="oauth-client-id" placeholder="xxx.apps.googleusercontent.com" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="oauth-client-secret">Client Secret</label>
+                <input class="form-input" type="password" id="oauth-client-secret" placeholder="Laisser vide pour conserver" autocomplete="new-password" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="oauth-save-btn">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Sécurité -->
+      <div class="card" style="max-width:640px;margin-top:var(--space-6);">
+        <div class="card-header">
+          <h2 class="card-title">Sécurité</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Paramètres de sessions et de limitation de débit.
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="security-alert" style="display:none;margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);font-size:var(--text-sm);"></div>
+          <form id="security-form" novalidate>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="jwt-expiry">Durée de session (secondes)</label>
+                <input class="form-input" type="number" id="jwt-expiry" placeholder="3600" min="60" />
+                <p style="font-size:var(--text-xs);color:var(--color-text-muted);margin:4px 0 0;">Défaut : 3600 (1 heure)</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="jwt-refresh">Durée refresh token (secondes)</label>
+                <input class="form-input" type="number" id="jwt-refresh" placeholder="2592000" min="3600" />
+                <p style="font-size:var(--text-xs);color:var(--color-text-muted);margin:4px 0 0;">Défaut : 2592000 (30 jours)</p>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-6);">
+              <div class="form-group">
+                <label class="form-label" for="rate-limit-req">Requêtes max par fenêtre</label>
+                <input class="form-input" type="number" id="rate-limit-req" placeholder="60" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="rate-limit-win">Fenêtre rate limit (secondes)</label>
+                <input class="form-input" type="number" id="rate-limit-win" placeholder="60" min="1" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="security-save-btn">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- PayPal -->
+      <div class="card" id="paypal-card" style="max-width:640px;margin-top:var(--space-6);">
+        <div class="card-header">
+          <h2 class="card-title">Paiement PayPal</h2>
+          <p class="card-subtitle" style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm)">
+            Credentials pour les paiements one-shot (clé d'installation, licence SaaS).
+          </p>
+        </div>
+        <div class="card-body">
+          <div id="paypal-alert" style="display:none;margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);font-size:var(--text-sm);"></div>
+          <form id="paypal-form" novalidate>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="paypal-client-id">Client ID</label>
+                <input class="form-input" type="text" id="paypal-client-id" placeholder="BAA..." autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="paypal-client-secret">Client Secret</label>
+                <input class="form-input" type="password" id="paypal-client-secret" placeholder="Laisser vide pour conserver" autocomplete="new-password" />
+              </div>
+            </div>
+            <div class="grid-2" style="gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div class="form-group">
+                <label class="form-label" for="paypal-mode">Mode</label>
+                <select class="form-select" id="paypal-mode">
+                  <option value="sandbox">Sandbox (test)</option>
+                  <option value="live">Live (production)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="paypal-webhook-id">Webhook ID</label>
+                <input class="form-input" type="text" id="paypal-webhook-id" placeholder="ID webhook PayPal" autocomplete="off" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="paypal-save-btn">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
       <!-- SaaS License block (saas mode only) -->
       <div class="card" id="license-card" style="max-width:640px;margin-top:var(--space-6);display:none;">
         <div class="card-header">
@@ -261,6 +370,125 @@
       document.getElementById('license-loading').style.display = 'none';
     }
   })();
+
+  // ── OAuth ────────────────────────────────────────────────────────────────
+  const showOAuthAlert = (msg, type = 'success') => {
+    const el = document.getElementById('oauth-alert');
+    el.textContent = msg; el.style.display = '';
+    el.style.background = type === 'success' ? 'var(--color-success-bg,#d1fae5)' : 'var(--color-error-bg,#fee2e2)';
+    el.style.color      = type === 'success' ? 'var(--color-success,#065f46)'   : 'var(--color-error,#dc2626)';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  };
+
+  try {
+    const r = await api.get('/admin/settings/oauth');
+    if (r && r.data) {
+      document.getElementById('oauth-enabled').checked    = r.data.oauth_google_enabled === '1';
+      document.getElementById('oauth-client-id').value   = r.data.oauth_google_client_id    || '';
+      // secret masqué côté serveur — ne pas préremplir
+    }
+  } catch(e) { /* silencieux */ }
+
+  document.getElementById('oauth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('oauth-save-btn');
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+    const payload = {
+      oauth_google_enabled:   document.getElementById('oauth-enabled').checked ? '1' : '0',
+      oauth_google_client_id: document.getElementById('oauth-client-id').value.trim(),
+    };
+    const secret = document.getElementById('oauth-client-secret').value;
+    if (secret) payload.oauth_google_client_secret = secret;
+    try {
+      await api.put('/admin/settings/oauth', payload);
+      showOAuthAlert('Configuration OAuth enregistrée.', 'success');
+      document.getElementById('oauth-client-secret').value = '';
+    } catch(err) {
+      showOAuthAlert('Erreur : ' + (err.message || 'Impossible.'), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enregistrer';
+    }
+  });
+
+  // ── Sécurité ──────────────────────────────────────────────────────────────
+  const showSecAlert = (msg, type = 'success') => {
+    const el = document.getElementById('security-alert');
+    el.textContent = msg; el.style.display = '';
+    el.style.background = type === 'success' ? 'var(--color-success-bg,#d1fae5)' : 'var(--color-error-bg,#fee2e2)';
+    el.style.color      = type === 'success' ? 'var(--color-success,#065f46)'   : 'var(--color-error,#dc2626)';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  };
+
+  try {
+    const r = await api.get('/admin/settings/security');
+    if (r && r.data) {
+      document.getElementById('jwt-expiry').value    = r.data.jwt_expiry          || '';
+      document.getElementById('jwt-refresh').value   = r.data.jwt_refresh_expiry  || '';
+      document.getElementById('rate-limit-req').value= r.data.rate_limit_requests || '';
+      document.getElementById('rate-limit-win').value= r.data.rate_limit_window   || '';
+    }
+  } catch(e) { /* silencieux */ }
+
+  document.getElementById('security-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('security-save-btn');
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+    const payload = {
+      jwt_expiry:          document.getElementById('jwt-expiry').value    || null,
+      jwt_refresh_expiry:  document.getElementById('jwt-refresh').value   || null,
+      rate_limit_requests: document.getElementById('rate-limit-req').value|| null,
+      rate_limit_window:   document.getElementById('rate-limit-win').value|| null,
+    };
+    try {
+      await api.put('/admin/settings/security', payload);
+      showSecAlert('Paramètres de sécurité enregistrés.', 'success');
+    } catch(err) {
+      showSecAlert('Erreur : ' + (err.message || 'Impossible.'), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enregistrer';
+    }
+  });
+
+  // ── PayPal ────────────────────────────────────────────────────────────────
+  const showPpAlert = (msg, type = 'success') => {
+    const el = document.getElementById('paypal-alert');
+    el.textContent = msg; el.style.display = '';
+    el.style.background = type === 'success' ? 'var(--color-success-bg,#d1fae5)' : 'var(--color-error-bg,#fee2e2)';
+    el.style.color      = type === 'success' ? 'var(--color-success,#065f46)'   : 'var(--color-error,#dc2626)';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  };
+
+  try {
+    const r = await api.get('/admin/settings/payment');
+    if (r && r.data) {
+      document.getElementById('paypal-client-id').value  = r.data.paypal_client_id  || '';
+      document.getElementById('paypal-mode').value       = r.data.paypal_mode       || 'sandbox';
+      document.getElementById('paypal-webhook-id').value = r.data.paypal_webhook_id || '';
+      // secret masqué côté serveur
+    }
+  } catch(e) { /* silencieux */ }
+
+  document.getElementById('paypal-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('paypal-save-btn');
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+    const payload = {
+      paypal_client_id:  document.getElementById('paypal-client-id').value.trim(),
+      paypal_mode:       document.getElementById('paypal-mode').value,
+      paypal_webhook_id: document.getElementById('paypal-webhook-id').value.trim(),
+    };
+    const secret = document.getElementById('paypal-client-secret').value;
+    if (secret) payload.paypal_client_secret = secret;
+    try {
+      await api.put('/admin/settings/payment', payload);
+      showPpAlert('Configuration PayPal enregistrée.', 'success');
+      document.getElementById('paypal-client-secret').value = '';
+    } catch(err) {
+      showPpAlert('Erreur : ' + (err.message || 'Impossible.'), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enregistrer';
+    }
+  });
 
   // ── Test modal ────────────────────────────────────────────────────────────
   const overlay = document.getElementById('test-overlay');
