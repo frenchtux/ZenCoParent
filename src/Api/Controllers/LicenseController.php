@@ -12,9 +12,9 @@ use ZenCoParent\Domain\Notification\MailerInterface;
 
 final class LicenseController
 {
-    private const VENDOR_EMAIL   = 'zencoparentapp@gmail.com';
-    private const VENDOR_PAYPAL  = 'zencoparentapp@gmail.com';
-    private const VENDOR_PRICE   = '150,00 EUR';
+    private const VENDOR_EMAIL         = 'zencoparentapp@gmail.com';
+    private const VENDOR_PURCHASE_URL  = 'https://zencoparent.com/license-purchase.html';
+    private const VENDOR_PRICE         = '150,00 EUR';
 
     public function __construct(
         private LicenseService        $licenseService,
@@ -68,11 +68,11 @@ final class LicenseController
                 instanceId:      $license->getInstanceId() ?? 'unknown',
             );
 
-            // Instructions PayPal à l'admin
+            // Instructions de paiement à l'admin
             $this->mailer->sendLicensePaymentInstructions(
                 to:              $adminEmail,
                 installationKey: $license->getInstallationKey(),
-                paypalEmail:     self::VENDOR_PAYPAL,
+                purchaseUrl:     self::VENDOR_PURCHASE_URL,
                 priceLabel:      self::VENDOR_PRICE,
             );
         } catch (\Throwable $e) {

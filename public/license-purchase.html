@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acheter une licence — ZenCoParent</title>
+  <script
+    src="https://www.paypal.com/sdk/js?client-id=BAA1by9d-YDmFecCoUD7hdjwaU6P8aTTCBLwZ_IOA4EOSeTV-zGPjaBSjg6dc8eFssrYzbiVRDFkWgx4ig&components=hosted-buttons&disable-funding=venmo&currency=EUR"
+    crossorigin="anonymous"
+    async>
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 40px 20px;
+      color: #111827;
+    }
+    .card {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 48px 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .logo {
+      color: #6366f1;
+      font-weight: 700;
+      font-size: .85em;
+      letter-spacing: .05em;
+      margin: 0 0 8px;
+    }
+    h1 { font-size: 1.6rem; margin: 0 0 8px; }
+    .subtitle { color: #6b7280; margin: 0 0 32px; font-size: .95rem; }
+
+    .price-badge {
+      background: #f0f0ff;
+      border: 2px solid #6366f1;
+      border-radius: 12px;
+      padding: 16px 24px;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .price-badge .amount {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #6366f1;
+    }
+    .price-badge .label {
+      color: #6b7280;
+      font-size: .85rem;
+      margin-top: 4px;
+    }
+
+    .notice {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: .88rem;
+      color: #92400e;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+    .notice strong { display: block; margin-bottom: 4px; }
+
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: .9rem;
+      margin-bottom: 6px;
+    }
+    input[type="email"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 8px;
+      transition: border-color .15s;
+    }
+    input[type="email"]:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+    .hint { color: #6b7280; font-size: .82rem; margin-bottom: 28px; }
+
+    #paypal-container-Z2FERDA7QC5ZY { margin-top: 8px; }
+
+    .step { display: none; }
+    .step.active { display: block; }
+
+    #step-payment { text-align: center; }
+    #step-success {
+      text-align: center;
+      padding: 16px 0;
+    }
+    #step-success .icon { font-size: 3rem; margin-bottom: 16px; }
+    #step-success h2 { color: #059669; margin: 0 0 12px; }
+    #step-success p { color: #374151; line-height: 1.6; }
+
+    .btn-continue {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .btn-continue:disabled {
+      background: #d1d5db;
+      cursor: not-allowed;
+    }
+
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 32px 0; }
+    footer { color: #9ca3af; font-size: .8rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <p class="logo">ZENCOPARENT</p>
+  <h1>Licence permanente</h1>
+  <p class="subtitle">Accès complet à la plateforme, paiement unique.</p>
+
+  <div class="price-badge">
+    <div class="amount">150,00 €</div>
+    <div class="label">Licence perpétuelle — 1 installation</div>
+  </div>
+
+  <!-- Étape 1 : saisie email -->
+  <div id="step-email" class="step active">
+    <div class="notice">
+      <strong>⚠️ Important avant de payer</strong>
+      Payez avec le compte PayPal associé à l'adresse email que vous avez utilisée
+      pour soumettre votre demande de licence. C'est ce qui nous permet de vous
+      envoyer automatiquement votre clé d'activation.
+    </div>
+
+    <label for="email">Votre adresse email (celle de votre demande de licence)</label>
+    <input type="email" id="email" placeholder="admin@votredomaine.com" autocomplete="email">
+    <p class="hint">Cette adresse doit correspondre à votre compte PayPal ou être l'email que vous avez déclaré lors de votre demande.</p>
+
+    <button class="btn-continue" id="btn-continue" onclick="goToPayment()" disabled>
+      Continuer vers le paiement →
+    </button>
+  </div>
+
+  <!-- Étape 2 : bouton PayPal -->
+  <div id="step-payment" class="step">
+    <p style="color:#6b7280;font-size:.9rem;margin-bottom:20px;">
+      Paiement pour : <strong id="email-display"></strong>
+    </p>
+    <div id="paypal-container-Z2FERDA7QC5ZY"></div>
+  </div>
+
+  <!-- Étape 3 : confirmation -->
+  <div id="step-success" class="step">
+    <div class="icon">✅</div>
+    <h2>Paiement reçu !</h2>
+    <p>
+      Votre clé d'activation ZenCoParent vous sera envoyée par email
+      sous <strong>24 h</strong> (jours ouvrés).<br><br>
+      Pensez à vérifier vos spams si vous ne la recevez pas.
+    </p>
+  </div>
+
+  <hr>
+  <footer>© ZenCoParent — Questions ? <a href="mailto:zencoparentapp@gmail.com">zencoparentapp@gmail.com</a></footer>
+</div>
+
+<script>
+  const emailInput = document.getElementById('email');
+  const btnContinue = document.getElementById('btn-continue');
+
+  emailInput.addEventListener('input', () => {
+    btnContinue.disabled = !emailInput.validity.valid || emailInput.value.trim() === '';
+  });
+
+  function show(id) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function goToPayment() {
+    const email = emailInput.value.trim();
+    if (!email) return;
+    document.getElementById('email-display').textContent = email;
+    show('step-payment');
+
+    // Render PayPal button once visible
+    document.addEventListener("DOMContentLoaded", renderPayPal);
+    if (document.readyState !== 'loading') renderPayPal();
+  }
+
+  function renderPayPal() {
+    if (window._paypalRendered) return;
+    window._paypalRendered = true;
+
+    if (typeof paypal === 'undefined') {
+      setTimeout(renderPayPal, 300);
+      return;
+    }
+
+    paypal.HostedButtons({
+      hostedButtonId: "Z2FERDA7QC5ZY",
+      onApprove: function() {
+        show('step-success');
+      }
+    }).render("#paypal-container-Z2FERDA7QC5ZY");
+  }
+</script>
+
+</body>
+</html>

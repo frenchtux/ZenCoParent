@@ -34,7 +34,7 @@ interface MailerInterface
     public function sendLicensePaymentInstructions(
         string $to,
         string $installationKey,
-        string $paypalEmail,
+        string $purchaseUrl,
         string $priceLabel,
     ): void;
 }

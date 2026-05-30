@@ -40,9 +40,9 @@ final class TenantAwareMailer implements MailerInterface
         $this->resolveMailer($vendorEmail)->sendLicenseRequestToVendor($vendorEmail, $installationKey, $adminEmail, $instanceId);
     }
 
-    public function sendLicensePaymentInstructions(string $to, string $installationKey, string $paypalEmail, string $priceLabel): void
+    public function sendLicensePaymentInstructions(string $to, string $installationKey, string $purchaseUrl, string $priceLabel): void
     {
-        $this->resolveMailer($to)->sendLicensePaymentInstructions($to, $installationKey, $paypalEmail, $priceLabel);
+        $this->resolveMailer($to)->sendLicensePaymentInstructions($to, $installationKey, $purchaseUrl, $priceLabel);
     }
 
     /**
