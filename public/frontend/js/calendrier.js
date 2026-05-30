@@ -201,8 +201,9 @@
       const typeKey = (ev.type || 'autre').toLowerCase();
       const evStart = ev.start_time || (ev.start_at ? ev.start_at.slice(11, 16) : '');
       const evEnd   = ev.end_at ? ev.end_at.slice(11, 16) : '';
+      const showEnd = evEnd && evEnd !== '00:00' && evEnd !== evStart;
       const timeStr = (evStart && evStart !== '00:00')
-        ? `<span style="font-size:var(--text-xs);color:var(--color-text-muted)">${escapeHtml(evStart)}${evEnd && evEnd !== '00:00' ? '–' + escapeHtml(evEnd) : ''}</span>`
+        ? `<span style="font-size:var(--text-xs);color:var(--color-text-muted)">${escapeHtml(evStart)}${showEnd ? '–' + escapeHtml(evEnd) : ''}</span>`
         : '';
       return `
         <div class="event-list-item">

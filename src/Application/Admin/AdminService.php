@@ -23,6 +23,14 @@ final class AdminService
         $subMetrics = $this->subscriptionRepo->getMetrics();
         $plans = $this->planRepo->findAll();
 
+        // "total" reflects the number of families (tenants), not subscriptions:
+        // a tenant without a subscription row is still a family (implicitly on trial).
+        $totalTenants = $this->tenantRepo->countAll();
+        $subMetrics['total'] = $totalTenants;
+        // Tenants without a subscription are implicitly on trial — fold them into the trial count.
+        $withoutSub = max(0, $totalTenants - ($subMetrics['active'] + $subMetrics['trial'] + $subMetrics['past_due']));
+        $subMetrics['trial'] += $withoutSub;
+
         return [
             'families'  => $subMetrics,
             'plans'     => array_map(fn($p) => $p->toArray(), $plans),
