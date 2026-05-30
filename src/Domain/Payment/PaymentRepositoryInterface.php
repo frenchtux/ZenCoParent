@@ -9,6 +9,8 @@ interface PaymentRepositoryInterface
 
     public function findByStripeSessionId(string $sessionId): ?Payment;
 
+    public function findByPaypalOrderId(string $orderId): ?Payment;
+
     /** @return Payment[] */
     public function findByTenantId(string $tenantId, int $limit = 50): array;
 

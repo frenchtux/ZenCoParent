@@ -77,8 +77,12 @@ return function (App $app): void {
     });
 
     // ── License routes (public — accessible even when trial expired) ─────────
-    $app->get('/license',          [LicenseController::class, 'status']);
-    $app->post('/license/activate',[LicenseController::class, 'activate']);
+    $app->get('/license',           [LicenseController::class, 'status']);
+    $app->post('/license/activate', [LicenseController::class, 'activate']);
+    // Requiert un admin connecté pour vérifier le SMTP du tenant et envoyer les emails
+    $app->post('/license/request',  [LicenseController::class, 'request'])
+        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']))
+        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)));
 
     // ── Admin license routes (master-key protected, no JWT required) ──────────
     if (($_ENV['APP_MODE'] ?? 'saas') === 'saas') {
@@ -90,12 +94,25 @@ return function (App $app): void {
     }
 
     // ── Payment routes ────────────────────────────────────────────────────────
+    // ── Stripe ───────────────────────────────────────────────────────────────
     // Webhook is public (Stripe signature verified inside the handler)
     $app->post('/payments/webhook',                    [PaymentController::class, 'webhook']);
     // Installation key checkout: public (no account needed to buy a key)
     $app->post('/payments/checkout/installation-key',  [PaymentController::class, 'checkoutInstallationKey']);
-    // SaaS license checkout: public pre-auth (admin redirected after Stripe)
+    // SaaS license checkout: admin only
     $app->post('/payments/checkout/license',           [PaymentController::class, 'checkoutLicense'])
+        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
+        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
+
+    // ── PayPal one-shot ──────────────────────────────────────────────────────
+    // Webhook is public (PayPal signature verified inside the handler)
+    $app->post('/payments/webhook/paypal',                    [PaymentController::class, 'webhookPaypal']);
+    // Installation key: public
+    $app->post('/payments/checkout/installation-key/paypal',  [PaymentController::class, 'checkoutInstallationKeyPaypal']);
+    // Capture after PayPal redirect: public (order_id is the secret)
+    $app->post('/payments/capture/paypal',                    [PaymentController::class, 'capturePaypal']);
+    // SaaS license: admin only
+    $app->post('/payments/checkout/license/paypal',           [PaymentController::class, 'checkoutLicensePaypal'])
         ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
         ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
 
@@ -137,6 +154,18 @@ return function (App $app): void {
             $g->get('/settings/mail',            [SettingsController::class, 'getMail']);
             $g->put('/settings/mail',            [SettingsController::class, 'putMail']);
             $g->post('/settings/mail/test',      [SettingsController::class, 'testMail']);
+            // OAuth settings (system-level)
+            $g->get('/settings/oauth',           [SettingsController::class, 'getOAuth']);
+            $g->put('/settings/oauth',           [SettingsController::class, 'putOAuth']);
+            // App settings (system-level)
+            $g->get('/settings/app',             [SettingsController::class, 'getApp']);
+            $g->put('/settings/app',             [SettingsController::class, 'putApp']);
+            // Security settings (system-level)
+            $g->get('/settings/security',        [SettingsController::class, 'getSecurity']);
+            $g->put('/settings/security',        [SettingsController::class, 'putSecurity']);
+            // Payment settings (PayPal, system-level)
+            $g->get('/settings/payment',         [SettingsController::class, 'getPayment']);
+            $g->put('/settings/payment',         [SettingsController::class, 'putPayment']);
             // SaaS tenant license status
             $g->get('/settings/saas-license',    [SettingsController::class, 'licenseStatus']);
         })->add(new RequireRoleMiddleware(['admin']));

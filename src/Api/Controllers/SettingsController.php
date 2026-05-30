@@ -47,6 +47,84 @@ final class SettingsController
         return ApiResponse::success($response, $this->settings->getMailConfig($tenantId));
     }
 
+    // ── OAuth ─────────────────────────────────────────────────────────────────
+
+    /** GET /admin/settings/oauth */
+    public function getOAuth(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        return ApiResponse::success($response, $this->settings->getOAuthConfig());
+    }
+
+    /** PUT /admin/settings/oauth */
+    public function putOAuth(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $this->settings->setOAuthConfig((array) $request->getParsedBody());
+        return ApiResponse::success($response, $this->settings->getOAuthConfig());
+    }
+
+    // ── App ───────────────────────────────────────────────────────────────────
+
+    /** GET /admin/settings/app */
+    public function getApp(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        return ApiResponse::success($response, $this->settings->getAppConfig());
+    }
+
+    /** PUT /admin/settings/app */
+    public function putApp(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $this->settings->setAppConfig((array) $request->getParsedBody());
+        return ApiResponse::success($response, $this->settings->getAppConfig());
+    }
+
+    // ── Security ──────────────────────────────────────────────────────────────
+
+    /** GET /admin/settings/security */
+    public function getSecurity(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        return ApiResponse::success($response, $this->settings->getSecurityConfig());
+    }
+
+    /** PUT /admin/settings/security */
+    public function putSecurity(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+
+        foreach (['jwt_expiry', 'jwt_refresh_expiry', 'rate_limit_requests', 'rate_limit_window'] as $intKey) {
+            if (isset($body[$intKey]) && $body[$intKey] !== null) {
+                $v = (int) $body[$intKey];
+                if ($v <= 0) {
+                    return ApiResponse::error($response, "{$intKey} doit être un entier positif.", 400);
+                }
+                $body[$intKey] = (string) $v;
+            }
+        }
+
+        $this->settings->setSecurityConfig($body);
+        return ApiResponse::success($response, $this->settings->getSecurityConfig());
+    }
+
+    // ── Payment ───────────────────────────────────────────────────────────────
+
+    /** GET /admin/settings/payment */
+    public function getPayment(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        return ApiResponse::success($response, $this->settings->getPaymentConfig());
+    }
+
+    /** PUT /admin/settings/payment */
+    public function putPayment(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+
+        if (isset($body['paypal_mode']) && !in_array($body['paypal_mode'], ['sandbox', 'live'], true)) {
+            return ApiResponse::error($response, "paypal_mode doit être 'sandbox' ou 'live'.", 400);
+        }
+
+        $this->settings->setPaymentConfig($body);
+        return ApiResponse::success($response, $this->settings->getPaymentConfig());
+    }
+
     /** POST /admin/settings/mail/test */
     public function testMail(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {

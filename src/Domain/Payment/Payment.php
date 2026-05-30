@@ -20,6 +20,7 @@ final class Payment
         private readonly ?string             $stripePaymentIntentId,
         private readonly ?string             $stripeInvoiceId,
         private readonly ?string             $stripeSessionId,
+        private readonly ?string             $paypalOrderId,
         private readonly string              $type,
         private readonly int                 $amountCents,
         private readonly string              $currency,
@@ -36,20 +37,22 @@ final class Payment
         ?string $tenantId,
         ?string $stripeSessionId,
         array   $metadata = [],
+        ?string $paypalOrderId = null,
     ): self {
         return new self(
-            id:                   \Ramsey\Uuid\Uuid::uuid4()->toString(),
-            tenantId:             $tenantId,
+            id:                    \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            tenantId:              $tenantId,
             stripePaymentIntentId: null,
-            stripeInvoiceId:      null,
-            stripeSessionId:      $stripeSessionId,
-            type:                 $type,
-            amountCents:          $amountCents,
-            currency:             $currency,
-            status:               self::STATUS_PENDING,
-            metadata:             $metadata,
-            paidAt:               null,
-            createdAt:            new \DateTimeImmutable(),
+            stripeInvoiceId:       null,
+            stripeSessionId:       $stripeSessionId,
+            paypalOrderId:         $paypalOrderId,
+            type:                  $type,
+            amountCents:           $amountCents,
+            currency:              $currency,
+            status:                self::STATUS_PENDING,
+            metadata:              $metadata,
+            paidAt:                null,
+            createdAt:             new \DateTimeImmutable(),
         );
     }
 
@@ -65,6 +68,7 @@ final class Payment
             stripePaymentIntentId: $data['stripe_payment_intent_id'] ?? null,
             stripeInvoiceId:       $data['stripe_invoice_id'] ?? null,
             stripeSessionId:       $data['stripe_session_id'] ?? null,
+            paypalOrderId:         $data['paypal_order_id'] ?? null,
             type:                  $data['type'],
             amountCents:           (int) $data['amount_cents'],
             currency:              $data['currency'],
@@ -82,6 +86,7 @@ final class Payment
     public function getStripePaymentIntentId(): ?string   { return $this->stripePaymentIntentId; }
     public function getStripeInvoiceId(): ?string         { return $this->stripeInvoiceId; }
     public function getStripeSessionId(): ?string         { return $this->stripeSessionId; }
+    public function getPaypalOrderId(): ?string           { return $this->paypalOrderId; }
     public function getType(): string                     { return $this->type; }
     public function getAmountCents(): int                 { return $this->amountCents; }
     public function getCurrency(): string                 { return $this->currency; }
@@ -98,6 +103,7 @@ final class Payment
             'stripe_payment_intent_id' => $this->stripePaymentIntentId,
             'stripe_invoice_id'        => $this->stripeInvoiceId,
             'stripe_session_id'        => $this->stripeSessionId,
+            'paypal_order_id'          => $this->paypalOrderId,
             'type'                     => $this->type,
             'amount_cents'             => $this->amountCents,
             'currency'                 => $this->currency,
