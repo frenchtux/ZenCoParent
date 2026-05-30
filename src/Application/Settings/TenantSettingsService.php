@@ -63,12 +63,17 @@ final class TenantSettingsService
 
     public function get(string $tenantId, string $key): ?string
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT value FROM tenant_settings WHERE tenant_id = :tid AND key = :key'
-        );
-        $stmt->execute(['tid' => $tenantId, 'key' => $key]);
-        $row = $stmt->fetchColumn();
+        if ($tenantId === self::SYSTEM_TENANT) {
+            $stmt = $this->pdo->prepare('SELECT value FROM app_settings WHERE key = :key');
+            $stmt->execute(['key' => $key]);
+        } else {
+            $stmt = $this->pdo->prepare(
+                'SELECT value FROM tenant_settings WHERE tenant_id = :tid AND key = :key'
+            );
+            $stmt->execute(['tid' => $tenantId, 'key' => $key]);
+        }
 
+        $row = $stmt->fetchColumn();
         if ($row === false || $row === null) {
             return null;
         }
@@ -109,6 +114,17 @@ final class TenantSettingsService
 
     public function set(string $tenantId, string $key, ?string $value): void
     {
+        if ($tenantId === self::SYSTEM_TENANT) {
+            if ($value === null) {
+                $this->pdo->prepare('DELETE FROM app_settings WHERE key = :key')
+                    ->execute(['key' => $key]);
+                return;
+            }
+            $stored = in_array($key, self::SENSITIVE_KEYS, true) ? $this->encrypt($value) : $value;
+            $this->upsertAppSetting($key, $stored);
+            return;
+        }
+
         if ($value === null) {
             $this->pdo->prepare(
                 'DELETE FROM tenant_settings WHERE tenant_id = :tid AND key = :key'
@@ -117,7 +133,6 @@ final class TenantSettingsService
         }
 
         $stored = in_array($key, self::SENSITIVE_KEYS, true) ? $this->encrypt($value) : $value;
-
         $this->upsert($tenantId, $key, $stored);
     }
 
@@ -287,13 +302,21 @@ final class TenantSettingsService
     private function getGroup(string $tenantId, array $keys, array $mask = []): array
     {
         $placeholders = implode(',', array_map(fn($i) => ":k{$i}", array_keys($keys)));
-        $params = ['tid' => $tenantId];
+        $params = [];
         foreach ($keys as $i => $k) {
             $params["k{$i}"] = $k;
         }
-        $stmt = $this->pdo->prepare(
-            "SELECT key, value FROM tenant_settings WHERE tenant_id = :tid AND key IN ({$placeholders})"
-        );
+
+        if ($tenantId === self::SYSTEM_TENANT) {
+            $stmt = $this->pdo->prepare(
+                "SELECT key, value FROM app_settings WHERE key IN ({$placeholders})"
+            );
+        } else {
+            $params['tid'] = $tenantId;
+            $stmt = $this->pdo->prepare(
+                "SELECT key, value FROM tenant_settings WHERE tenant_id = :tid AND key IN ({$placeholders})"
+            );
+        }
         $stmt->execute($params);
         $rows = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
 
@@ -324,6 +347,20 @@ final class TenantSettingsService
                 continue; // keep existing value
             }
             $this->set($tenantId, $k, ($v === '' || $v === null) ? null : (string) $v);
+        }
+    }
+
+    private function upsertAppSetting(string $key, string $value): void
+    {
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $upd = $this->pdo->prepare(
+            'UPDATE app_settings SET value = :val, updated_at = :now WHERE key = :key'
+        );
+        $upd->execute(['val' => $value, 'now' => $now, 'key' => $key]);
+        if ($upd->rowCount() === 0) {
+            $this->pdo->prepare(
+                'INSERT INTO app_settings (key, value, created_at, updated_at) VALUES (:key, :val, :now, :now)'
+            )->execute(['key' => $key, 'val' => $value, 'now' => $now]);
         }
     }
 
