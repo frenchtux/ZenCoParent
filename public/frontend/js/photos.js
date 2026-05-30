@@ -60,18 +60,73 @@ async function photosInit(user) {
     empty.style.display = 'none';
     grid.style.display = 'grid';
 
-    grid.innerHTML = photos.map(p => {
+    grid.innerHTML = photos.map((p, idx) => {
       const cap = p.caption ? escapeHtml(p.caption) : '';
       const cn  = p.child_id ? escapeHtml(childName(p.child_id)) : '';
       const label = [cap, cn].filter(Boolean).join(' · ');
-      return `<div class="photo-card">
+      return `<div class="photo-card" onclick="window._openLightbox(${idx})" style="cursor:pointer;">
         <img src="${escapeHtml(p.url)}" alt="${escapeHtml(p.filename || 'photo')}" loading="lazy" />
-        <button class="photo-card-delete" title="Supprimer" onclick="window._deletePhoto('${p.id}')">
+        <button class="photo-card-delete" title="Supprimer" onclick="event.stopPropagation();window._deletePhoto('${p.id}')">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
         ${label ? `<div class="photo-card-overlay"><div class="photo-card-caption">${label}</div></div>` : ''}
       </div>`;
     }).join('');
+  }
+
+  // ── Lightbox ─────────────────────────────────────────────────────────────
+  let _lbIdx = 0;
+
+  window._openLightbox = function (idx) {
+    _lbIdx = idx;
+    _renderLightbox();
+    document.getElementById('lb-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  function _closeLightbox() {
+    document.getElementById('lb-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function _renderLightbox() {
+    const p   = photos[_lbIdx];
+    if (!p) return;
+    const cap = p.caption ? escapeHtml(p.caption) : '';
+    const cn  = p.child_id ? escapeHtml(childName(p.child_id)) : '';
+    const label = [cap, cn].filter(Boolean).join(' · ');
+    document.getElementById('lb-img').src = p.url;
+    document.getElementById('lb-img').alt = p.filename || 'photo';
+    document.getElementById('lb-caption').textContent = label;
+    document.getElementById('lb-counter').textContent = `${_lbIdx + 1} / ${photos.length}`;
+    document.getElementById('lb-prev').style.visibility = _lbIdx > 0 ? 'visible' : 'hidden';
+    document.getElementById('lb-next').style.visibility = _lbIdx < photos.length - 1 ? 'visible' : 'hidden';
+  }
+
+  // Inject lightbox DOM once
+  if (!document.getElementById('lb-overlay')) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="lb-overlay" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;">
+        <button id="lb-close" style="position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:32px;cursor:pointer;line-height:1;" aria-label="Fermer">&times;</button>
+        <button id="lb-prev" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:28px;cursor:pointer;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;" aria-label="Précédent">&#8249;</button>
+        <button id="lb-next" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:28px;cursor:pointer;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;" aria-label="Suivant">&#8250;</button>
+        <img id="lb-img" src="" alt="" style="max-height:80vh;max-width:90vw;object-fit:contain;border-radius:4px;" />
+        <div style="margin-top:12px;text-align:center;">
+          <div id="lb-caption" style="color:#e5e7eb;font-size:14px;"></div>
+          <div id="lb-counter" style="color:#9ca3af;font-size:12px;margin-top:4px;"></div>
+        </div>
+      </div>`);
+
+    document.getElementById('lb-close').addEventListener('click', _closeLightbox);
+    document.getElementById('lb-prev').addEventListener('click', () => { if (_lbIdx > 0) { _lbIdx--; _renderLightbox(); } });
+    document.getElementById('lb-next').addEventListener('click', () => { if (_lbIdx < photos.length - 1) { _lbIdx++; _renderLightbox(); } });
+    document.getElementById('lb-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) _closeLightbox(); });
+    document.addEventListener('keydown', e => {
+      if (document.getElementById('lb-overlay').style.display === 'none') return;
+      if (e.key === 'Escape')      _closeLightbox();
+      if (e.key === 'ArrowLeft'  && _lbIdx > 0)               { _lbIdx--; _renderLightbox(); }
+      if (e.key === 'ArrowRight' && _lbIdx < photos.length - 1) { _lbIdx++; _renderLightbox(); }
+    });
   }
 
   // ── Delete ───────────────────────────────────────────────────────────────

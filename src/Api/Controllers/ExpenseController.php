@@ -98,6 +98,7 @@ final class ExpenseController
             description: trim((string) $body['description']),
             date:        (string) $body['date'],
             category:    isset($body['category']) && $body['category'] !== '' ? (string) $body['category'] : null,
+            splitRatio:  isset($body['split_ratio']) && is_array($body['split_ratio']) ? $body['split_ratio'] : [],
         );
 
         try {

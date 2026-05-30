@@ -68,6 +68,7 @@ final class Expense
         string  $description,
         string  $date,
         ?string $category,
+        array   $splitRatio = [],
     ): self {
         return new self(
             id:          $this->id,
@@ -76,7 +77,7 @@ final class Expense
             amount:      $amount,
             description: $description,
             category:    $category,
-            splitRatio:  $this->splitRatio,
+            splitRatio:  $splitRatio !== [] ? $splitRatio : $this->splitRatio,
             date:        new \DateTimeImmutable($date),
             createdAt:   $this->createdAt,
             updatedAt:   new \DateTimeImmutable(),
