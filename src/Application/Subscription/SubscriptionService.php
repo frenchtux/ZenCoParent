@@ -54,6 +54,11 @@ final class SubscriptionService
             return false;
         }
 
+        // Plan "free" = accès identique au mode Community (tous modules disponibles)
+        if ($plan->getName() === 'free') {
+            return true;
+        }
+
         return $plan->isModuleIncluded($module);
     }
 

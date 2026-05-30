@@ -12,5 +12,6 @@ final readonly class UpdateExpenseCommand
         public string  $description,
         public string  $date,
         public ?string $category,
+        public array   $splitRatio = [],
     ) {}
 }

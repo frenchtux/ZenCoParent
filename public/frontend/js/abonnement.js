@@ -81,6 +81,11 @@
 
     subBody.innerHTML = html;
 
+    // Masquer les plans si abonnement actif ou en cours d'essai avec plan
+    const plansSection = document.getElementById('plans-section');
+    const isSubscribed = d.status === 'active' || d.status === 'past_due';
+    if (plansSection) plansSection.style.display = isSubscribed ? 'none' : '';
+
     // Show portal only if subscription exists
     if (d.status !== 'none' && d.plan && portalCard) {
       portalCard.style.display = 'block';

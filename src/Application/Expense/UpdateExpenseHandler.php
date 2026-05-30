@@ -26,6 +26,7 @@ final class UpdateExpenseHandler
             description: $command->description,
             date:        $command->date,
             category:    $command->category,
+            splitRatio:  $command->splitRatio,
         );
 
         $this->expenseRepo->update($updated);

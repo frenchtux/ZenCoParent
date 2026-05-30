@@ -284,8 +284,11 @@
   }
 
   function toggleReportField(type) {
-    const group = document.getElementById('event-report-group');
-    if (group) group.style.display = (type === 'medical') ? '' : 'none';
+    const isMedical = type === 'medical';
+    const reportGroup = document.getElementById('event-report-group');
+    const practGroup  = document.getElementById('event-practitioner-group');
+    if (reportGroup) reportGroup.style.display = isMedical ? '' : 'none';
+    if (practGroup)  practGroup.style.display  = isMedical ? '' : 'none';
   }
 
   function resetEventForm() {
@@ -323,7 +326,8 @@
     document.getElementById('event-description').value = ev.description || '';
     toggleReportField(ev.type || '');
     if (ev.type === 'medical') {
-      document.getElementById('event-report').value = ev.report || '';
+      document.getElementById('event-report').value       = ev.report       || '';
+      document.getElementById('event-practitioner').value = ev.practitioner || '';
     }
     openModal('event-modal');
   };
@@ -390,7 +394,8 @@
       description: document.getElementById('event-description').value.trim() || null,
     };
     if (eventType === 'medical') {
-      payload.report = document.getElementById('event-report').value.trim() || null;
+      payload.report       = document.getElementById('event-report').value.trim()       || null;
+      payload.practitioner = document.getElementById('event-practitioner').value.trim() || null;
     }
 
     if (!payload.title) {

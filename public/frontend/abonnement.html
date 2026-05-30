@@ -28,17 +28,20 @@
         </div>
       </div>
 
-      <!-- Billing interval toggle -->
-      <div style="margin-top:var(--space-8);text-align:center;">
-        <div class="btn-group" id="interval-toggle">
-          <button class="btn btn-primary btn-sm active" data-interval="monthly">Mensuel</button>
-          <button class="btn btn-ghost btn-sm" data-interval="yearly">Annuel <span class="badge badge-success" style="margin-left:4px;">−2 mois</span></button>
+      <!-- Plans section — masqué si abonnement actif -->
+      <div id="plans-section">
+        <!-- Billing interval toggle -->
+        <div style="margin-top:var(--space-8);text-align:center;">
+          <div class="btn-group" id="interval-toggle">
+            <button class="btn btn-primary btn-sm active" data-interval="monthly">Mensuel</button>
+            <button class="btn btn-ghost btn-sm" data-interval="yearly">Annuel <span class="badge badge-success" style="margin-left:4px;">−2 mois</span></button>
+          </div>
         </div>
-      </div>
 
-      <!-- Plans grid -->
-      <div class="grid-3" id="plans-grid" style="margin-top:var(--space-6);">
-        <div class="loading-state" style="grid-column:1/-1;"><div class="spinner"></div><span>Chargement des plans...</span></div>
+        <!-- Plans grid -->
+        <div class="grid-3" id="plans-grid" style="margin-top:var(--space-6);">
+          <div class="loading-state" style="grid-column:1/-1;"><div class="spinner"></div><span>Chargement des plans...</span></div>
+        </div>
       </div>
 
       <!-- Stripe portal link -->

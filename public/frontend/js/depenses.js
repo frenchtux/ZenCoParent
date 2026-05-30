@@ -107,7 +107,7 @@
     document.getElementById('summary-total').textContent = formatAmount(total);
     document.getElementById('summary-count').textContent = `${filtered.length} dépense${filtered.length !== 1 ? 's' : ''}`;
 
-    // Per-parent split
+    // Per-parent: paid amounts
     const splitEl = document.getElementById('summary-split');
     const entries = Object.entries(byUser);
     if (entries.length === 0) {
@@ -122,6 +122,89 @@
         </div>`;
       }).join('');
     }
+
+    // Balance
+    renderBalance(filtered);
+  }
+
+  /* ── Balance calculation ──────────────────────────────────── */
+  function computeBalance(filtered) {
+    // net[userId] = total paid by userId - total owed by userId
+    const paid = {};
+    const owes = {};
+
+    filtered.forEach(e => {
+      const amount  = parseFloat(e.amount || 0);
+      const paidBy  = e.paid_by || e.paid_by_id;
+      const split   = e.split_ratio && typeof e.split_ratio === 'object' ? e.split_ratio : {};
+      const keys    = Object.keys(split);
+
+      paid[paidBy] = (paid[paidBy] || 0) + amount;
+
+      if (keys.length > 0) {
+        keys.forEach(uid => {
+          const pct = parseFloat(split[uid]) || 0;
+          owes[uid] = (owes[uid] || 0) + amount * pct / 100;
+        });
+      } else {
+        // No split_ratio: equal split among all users
+        if (users.length > 0) {
+          const share = amount / users.length;
+          users.forEach(u => { owes[u.id] = (owes[u.id] || 0) + share; });
+        }
+      }
+    });
+
+    const allIds = new Set([...Object.keys(paid), ...Object.keys(owes)]);
+    const net = {};
+    allIds.forEach(uid => { net[uid] = (paid[uid] || 0) - (owes[uid] || 0); });
+    return net;
+  }
+
+  function renderBalance(filtered) {
+    const balEl = document.getElementById('summary-balance');
+    if (!balEl) return;
+
+    if (filtered.length === 0 || users.length < 2) {
+      balEl.innerHTML = '<span style="font-size:var(--text-sm);color:var(--color-text-muted);">—</span>';
+      return;
+    }
+
+    const net = computeBalance(filtered);
+
+    // Build settlement sentences: who owes whom
+    // Simplest two-person case and multi-person greedy settlement
+    const debtors  = Object.entries(net).filter(([, v]) => v < -0.01).map(([id, v]) => ({ id, v }));
+    const creditors = Object.entries(net).filter(([, v]) => v > 0.01).map(([id, v]) => ({ id, v }));
+
+    if (debtors.length === 0 && creditors.length === 0) {
+      balEl.innerHTML = '<span style="font-size:var(--text-sm);color:var(--color-success,#16a34a);">✓ Comptes à l\'équilibre</span>';
+      return;
+    }
+
+    const settlements = [];
+    const d = debtors.map(x => ({ ...x }));
+    const c = creditors.map(x => ({ ...x }));
+    let di = 0, ci = 0;
+    while (di < d.length && ci < c.length) {
+      const amt = Math.min(-d[di].v, c[ci].v);
+      if (amt > 0.01) settlements.push({ from: d[di].id, to: c[ci].id, amt });
+      d[di].v += amt;
+      c[ci].v -= amt;
+      if (Math.abs(d[di].v) < 0.01) di++;
+      if (Math.abs(c[ci].v) < 0.01) ci++;
+    }
+
+    const userName = id => {
+      const u = users.find(u => String(u.id) === String(id));
+      return u ? `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email : `#${id}`;
+    };
+
+    balEl.innerHTML = settlements.map(s =>
+      `<span style="font-size:var(--text-sm);background:var(--color-warning-bg,#fef3c7);color:var(--color-warning-text,#92400e);padding:2px 8px;border-radius:var(--radius-full);">
+        ${escapeHtml(userName(s.from))} doit <strong>${formatAmount(s.amt)}</strong> à ${escapeHtml(userName(s.to))}
+      </span>`
+    ).join('');
   }
 
   /* ── Render table ─────────────────────────────────────────── */
@@ -195,6 +278,79 @@
         const selected = String(u.id) === String(currentUser.id) ? ' selected' : '';
         return `<option value="${u.id}"${selected}>${escapeHtml(name)}</option>`;
       }).join('');
+
+    // Split mode toggle
+    const modeEl = document.getElementById('expense-split-mode');
+    if (modeEl) {
+      modeEl.addEventListener('change', () => renderSplitCustom());
+    }
+  }
+
+  /* ── Split ratio widget ───────────────────────────────────── */
+  function renderSplitCustom(existingRatio) {
+    const modeEl  = document.getElementById('expense-split-mode');
+    const container = document.getElementById('expense-split-custom');
+    if (!modeEl || !container) return;
+
+    if (modeEl.value !== 'custom') {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'flex';
+
+    const parents = users.filter(u => u.role === 'parent' || u.role === 'admin');
+    const count   = parents.length || 2;
+    const defPct  = Math.round(100 / count);
+
+    container.innerHTML = parents.map((u, i) => {
+      const name  = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email;
+      const val   = existingRatio && existingRatio[u.id] != null
+        ? existingRatio[u.id]
+        : (i === parents.length - 1 ? 100 - defPct * (parents.length - 1) : defPct);
+      return `<div style="display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);">
+        <span style="flex:1;color:var(--color-text-primary);">${escapeHtml(name)}</span>
+        <input type="number" class="form-input split-ratio-input" data-user-id="${u.id}"
+          min="0" max="100" step="1" value="${val}"
+          style="width:72px;text-align:right;" />
+        <span style="color:var(--color-text-muted);">%</span>
+      </div>`;
+    }).join('');
+
+    // Live total validation
+    container.querySelectorAll('.split-ratio-input').forEach(inp => {
+      inp.addEventListener('input', validateSplitTotal);
+    });
+  }
+
+  function validateSplitTotal() {
+    const inputs = document.querySelectorAll('.split-ratio-input');
+    const total  = Array.from(inputs).reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+    const btn    = document.getElementById('expense-save-btn');
+    const ok     = Math.abs(total - 100) < 0.5;
+    inputs.forEach(el => el.style.borderColor = ok ? '' : 'var(--color-error,#dc2626)');
+    if (btn) btn.disabled = !ok;
+  }
+
+  function getSplitRatioPayload() {
+    const modeEl = document.getElementById('expense-split-mode');
+    if (!modeEl || modeEl.value === 'equal') {
+      // Build 50/50 between the two parent users
+      const parents = users.filter(u => u.role === 'parent' || u.role === 'admin');
+      if (parents.length === 0) return {};
+      const pct = Math.round(100 / parents.length);
+      const ratio = {};
+      parents.forEach((u, i) => {
+        ratio[u.id] = i === parents.length - 1 ? 100 - pct * (parents.length - 1) : pct;
+      });
+      return ratio;
+    }
+    // Custom
+    const ratio = {};
+    document.querySelectorAll('.split-ratio-input').forEach(el => {
+      const val = parseFloat(el.value);
+      if (!isNaN(val)) ratio[el.dataset.userId] = val;
+    });
+    return ratio;
   }
 
   /* ── New Expense ──────────────────────────────────────────── */
@@ -205,8 +361,9 @@
       document.getElementById('expense-modal-title').textContent = 'Nouvelle dépense';
       document.getElementById('expense-save-btn').textContent    = 'Ajouter';
       document.getElementById('expense-date').value = todayISO();
-      // Default paid_by = current user
       document.getElementById('expense-paid-by').value = String(currentUser.id);
+      document.getElementById('expense-split-mode').value = 'equal';
+      renderSplitCustom();
       openModal('expense-modal');
     });
   }
@@ -222,6 +379,14 @@
     document.getElementById('expense-date').value        = (exp.date || '').slice(0, 10);
     document.getElementById('expense-paid-by').value    = exp.paid_by || exp.paid_by_id || '';
     document.getElementById('expense-notes').value      = exp.notes || '';
+
+    // Restore split_ratio
+    const ratio = exp.split_ratio && typeof exp.split_ratio === 'object' ? exp.split_ratio : {};
+    const hasCustom = Object.keys(ratio).length > 0;
+    const modeEl = document.getElementById('expense-split-mode');
+    if (modeEl) modeEl.value = hasCustom ? 'custom' : 'equal';
+    renderSplitCustom(hasCustom ? ratio : null);
+
     openModal('expense-modal');
   };
 
@@ -258,6 +423,7 @@
         date:        document.getElementById('expense-date').value || null,
         paid_by:     document.getElementById('expense-paid-by').value || null,
         notes:       document.getElementById('expense-notes').value.trim() || null,
+        split_ratio: getSplitRatioPayload(),
       };
 
       if (!payload.description) {
