@@ -76,6 +76,7 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
                 amount      = :amount,
                 description = :description,
                 category    = :category,
+                split_ratio = :split_ratio,
                 date        = :date,
                 updated_at  = datetime(\'now\')
             WHERE id = :id'
@@ -85,6 +86,7 @@ final class SQLiteExpenseRepository extends AbstractRepository implements Expens
             'amount'      => $expense->getAmount(),
             'description' => $expense->getDescription(),
             'category'    => $expense->getCategory(),
+            'split_ratio' => json_encode($expense->getSplitRatio()),
             'date'        => $expense->getDate()->format('Y-m-d'),
         ]);
     }
