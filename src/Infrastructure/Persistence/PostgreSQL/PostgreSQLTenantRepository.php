@@ -37,6 +37,11 @@ final class PostgreSQLTenantRepository extends AbstractRepository implements Ten
         return array_map(fn($r) => Tenant::fromArray($r), $stmt->fetchAll());
     }
 
+    public function countAll(): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM tenants')->fetchColumn();
+    }
+
     public function save(Tenant $tenant): void
     {
         $data = $tenant->toArray();

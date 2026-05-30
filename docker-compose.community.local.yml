@@ -1,6 +1,6 @@
 # Local build override — uses host source instead of GitHub URL.
 # Usage:
-#   APP_PORT=8060 docker compose \
+#   APP_PORT=8060 APP_URL=http://localhost:8060 docker compose \
 #     -f docker-compose.community.yml \
 #     -f docker-compose.community.local.yml \
 #     -p zenco-community up -d --build
@@ -15,3 +15,6 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile.community
+    environment:
+      APP_ENV: local
+      APP_URL: "http://localhost:${APP_PORT:-8060}"

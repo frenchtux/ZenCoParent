@@ -13,6 +13,9 @@ interface TenantRepositoryInterface
     /** @return Tenant[] */
     public function findAll(int $limit = 50, int $offset = 0): array;
 
+    /** Total number of tenants (families). */
+    public function countAll(): int;
+
     public function save(Tenant $tenant): void;
 
     public function updateModulesOverride(string $id, ?array $modules): void;

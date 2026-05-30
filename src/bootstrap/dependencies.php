@@ -328,21 +328,27 @@ return function (ContainerBuilder $containerBuilder) {
 
         // ── Plan / Subscription / Payment repositories (SaaS only) ─────────────
         PlanRepositoryInterface::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPlanRepository(
-                $c->get(\PDO::class)
-            );
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePlanRepository()
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPlanRepository(
+                    $c->get(\PDO::class)
+                );
         },
 
         SubscriptionRepositoryInterface::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLSubscriptionRepository(
-                $c->get(\PDO::class)
-            );
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteSubscriptionRepository()
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLSubscriptionRepository(
+                    $c->get(\PDO::class)
+                );
         },
 
         PaymentRepositoryInterface::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPaymentRepository(
-                $c->get(\PDO::class)
-            );
+            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
+                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePaymentRepository()
+                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPaymentRepository(
+                    $c->get(\PDO::class)
+                );
         },
 
         // ── Application services ─────────────────────────────────────────────

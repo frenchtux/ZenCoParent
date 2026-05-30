@@ -33,14 +33,14 @@ final readonly class MessageDTO
     public function toArray(): array
     {
         return [
-            'id'        => $this->id,
-            'threadId'  => $this->threadId,
-            'tenantId'  => $this->tenantId,
-            'senderId'  => $this->senderId,
-            'content'   => $this->content,
-            'isRead'    => $this->isRead,
-            'readAt'    => $this->readAt,
-            'createdAt' => $this->createdAt,
+            'id'         => $this->id,
+            'thread_id'  => $this->threadId,
+            'tenant_id'  => $this->tenantId,
+            'sender_id'  => $this->senderId,
+            'content'    => $this->content,
+            'is_read'    => $this->isRead,
+            'read_at'    => $this->readAt,
+            'created_at' => $this->createdAt,
         ];
     }
 }

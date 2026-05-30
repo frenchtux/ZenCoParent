@@ -53,7 +53,7 @@ services:
       APP_MODE: community
       # ⚠ Changer ces secrets avant tout usage avec de vraies données.
       APP_SECRET: "change-me-to-a-long-random-secret-min-32-chars!!"
-      APP_URL: "http://localhost"
+      APP_URL: "${APP_URL:-http://localhost}"
       APP_DEBUG: "false"
       DB_CONNECTION: sqlite
       DB_FILE: /var/www/html/storage/database.sqlite

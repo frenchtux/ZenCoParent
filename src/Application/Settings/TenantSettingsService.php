@@ -148,7 +148,7 @@ final class TenantSettingsService
             if ($k === 'mail_password' && $v === '••••••••') {
                 continue;
             }
-            $this->set($tenantId, $k, $v === '' ? null : $v);
+            $this->set($tenantId, $k, ($v === '' || $v === null) ? null : (string) $v);
         }
     }
 

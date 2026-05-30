@@ -406,6 +406,7 @@
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
+.event-dot-custody    { background: #7C5CBF; }
 .event-dot-rendezvous { background: #4A7AC4; }
 .event-dot-activite   { background: #5A9B6A; }
 .event-dot-medical    { background: #C44A4A; }
@@ -1064,6 +1065,7 @@ tbody tr:hover td {
   cursor: pointer;
 }
 
+.calendar-event-chip.custody    { background: #F0EBF9; color: #7C5CBF; }
 .calendar-event-chip.rendezvous { background: #EEF2FD; color: #4A7AC4; }
 .calendar-event-chip.activite   { background: #EDF6EF; color: #5A9B6A; }
 .calendar-event-chip.medical    { background: #FDEDED; color: #C44A4A; }
