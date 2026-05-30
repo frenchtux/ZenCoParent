@@ -12,9 +12,15 @@ use ZenCoParent\Domain\Notification\MailerInterface;
 
 final class LicenseController
 {
-    private const VENDOR_EMAIL         = 'zencoparentapp@gmail.com';
-    private const VENDOR_PURCHASE_URL  = 'https://zencoparent.com/license-purchase.html';
-    private const VENDOR_PRICE         = '150,00 EUR';
+    private const VENDOR_EMAIL  = 'zencoparentapp@gmail.com';
+    private const VENDOR_PRICE  = '150,00 EUR';
+
+    private function purchaseUrl(): string
+    {
+        $base = $this->settings->get(TenantSettingsService::SYSTEM_TENANT, 'app_url')
+                ?? rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/');
+        return rtrim($base, '/') . '/license-purchase.html';
+    }
 
     public function __construct(
         private LicenseService        $licenseService,
@@ -72,7 +78,7 @@ final class LicenseController
             $this->mailer->sendLicensePaymentInstructions(
                 to:              $adminEmail,
                 installationKey: $license->getInstallationKey(),
-                purchaseUrl:     self::VENDOR_PURCHASE_URL,
+                purchaseUrl:     $this->purchaseUrl(),
                 priceLabel:      self::VENDOR_PRICE,
             );
         } catch (\Throwable $e) {
