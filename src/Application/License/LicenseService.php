@@ -16,7 +16,7 @@ final class LicenseService
      * To rotate: generate a new keypair with `python scripts/generate_license.py --keygen`,
      * update this constant, and redeploy.
      */
-    private const PUBLIC_KEY_HEX = '7040c3ceb3d4690974df3a2b396b61377998e6db9fea95fb87cd565e2f877fc2';
+    private const PUBLIC_KEY_HEX = '358b9c774400498857d5ae35ead3600525599ddd0bd48f1f84e3b24ec7e4a37b';
 
     public function __construct(
         private LicenseRepositoryInterface $repo,
