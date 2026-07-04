@@ -34,6 +34,7 @@
 
 # Scripts privés (ne jamais publier)
 scripts/generate_license.py
+scripts/.license_signing_key
 
 # PHP CS Fixer cache
 .php-cs-fixer.cache
