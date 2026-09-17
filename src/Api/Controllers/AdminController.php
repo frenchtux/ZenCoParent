@@ -43,32 +43,6 @@ final class AdminController
         return ApiResponse::success($response, $this->adminService->listFamilies($limit, $offset));
     }
 
-    /** GET /admin/families/{id} */
-    public function getFamily(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
-        return ApiResponse::success($response, $this->adminService->getFamilyDetail($args['id']));
-    }
-
-    /** PATCH /admin/families/{id}/modules */
-    public function updateModules(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
-        $body    = (array) $request->getParsedBody();
-        $modules = $body['modules'] ?? null;
-
-        if ($modules !== null && !is_array($modules)) {
-            return ApiResponse::error($response, "modules doit être un objet ou null.", 400);
-        }
-
-        $this->adminService->setModulesOverride($args['id'], $modules);
-        return ApiResponse::success($response, ['updated' => true]);
-    }
-
     // ─── User → Tenant assignment ────────────────────────────────────────────
 
     /** GET /admin/users/{id}/tenants — list tenants accessible by a user */

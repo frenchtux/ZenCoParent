@@ -57,11 +57,6 @@ final class SQLiteTenantRepository extends AbstractRepository implements TenantR
         return (int) $this->pdo->query('SELECT COUNT(*) FROM tenants')->fetchColumn();
     }
 
-    public function updateModulesOverride(string $id, ?array $modules): void
-    {
-        // modules_override column may not exist in community SQLite schema — no-op
-    }
-
     public function setActive(string $id, bool $active): void
     {
         $stmt = $this->pdo->prepare(

@@ -36,13 +36,12 @@
   function renderFamiliesTable(families) {
     const tbody = document.getElementById('families-tbody');
     if (!families.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Aucune famille.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" class="empty-state">Aucune famille.</td></tr>';
     } else {
       tbody.innerHTML = families.map(f => {
         return `<tr>
           <td><strong>${escapeHtml(f.name)}</strong><br><small class="text-muted">${escapeHtml(f.slug)}</small></td>
           <td><small>${new Date(f.created_at).toLocaleDateString('fr-FR')}</small></td>
-          <td><a href="/frontend/admin-famille.html?id=${encodeURIComponent(f.id)}" class="btn btn-ghost btn-sm">Détail →</a></td>
         </tr>`;
       }).join('');
     }

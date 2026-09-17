@@ -77,8 +77,6 @@ return function (App $app): void {
             $g->get('',                          [AdminController::class, 'dashboard']);
             $g->get('/dashboard',                [AdminController::class, 'dashboard']);
             $g->get('/families',                 [AdminController::class, 'listFamilies']);
-            $g->get('/families/{id}',            [AdminController::class, 'getFamily']);
-            $g->patch('/families/{id}/modules',  [AdminController::class, 'updateModules']);
             // User → Tenant assignment
             $g->get('/users/{id}/tenants',       [AdminController::class, 'getUserTenants']);
             $g->put('/users/{id}/tenants',       [AdminController::class, 'setUserTenants']);

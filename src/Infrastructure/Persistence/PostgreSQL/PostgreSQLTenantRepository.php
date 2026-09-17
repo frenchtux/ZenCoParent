@@ -62,17 +62,6 @@ final class PostgreSQLTenantRepository extends AbstractRepository implements Ten
         ]);
     }
 
-    public function updateModulesOverride(string $id, ?array $modules): void
-    {
-        $stmt = $this->pdo->prepare(
-            'UPDATE tenants SET modules_override = :mo, updated_at = NOW() WHERE id = :id'
-        );
-        $stmt->execute([
-            'id' => $id,
-            'mo' => $modules !== null ? json_encode($modules) : null,
-        ]);
-    }
-
     public function setActive(string $id, bool $active): void
     {
         $stmt = $this->pdo->prepare(
