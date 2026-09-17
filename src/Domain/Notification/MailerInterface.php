@@ -22,19 +22,4 @@ interface MailerInterface
         \DateTimeImmutable $date,
     ): void;
 
-    /** Notifie le vendeur qu'une demande de licence a été reçue. */
-    public function sendLicenseRequestToVendor(
-        string $vendorEmail,
-        string $installationKey,
-        string $adminEmail,
-        string $instanceId,
-    ): void;
-
-    /** Envoie les instructions de paiement à l'admin qui demande la licence. */
-    public function sendLicensePaymentInstructions(
-        string $to,
-        string $installationKey,
-        string $purchaseUrl,
-        string $priceLabel,
-    ): void;
 }

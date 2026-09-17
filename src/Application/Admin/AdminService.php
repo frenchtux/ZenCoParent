@@ -3,42 +3,33 @@ declare(strict_types=1);
 
 namespace ZenCoParent\Application\Admin;
 
-use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
-use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
-use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
 
 final class AdminService
 {
     public function __construct(
-        private readonly TenantRepositoryInterface       $tenantRepo,
-        private readonly SubscriptionRepositoryInterface $subscriptionRepo,
-        private readonly PlanRepositoryInterface         $planRepo,
-        private readonly PaymentRepositoryInterface      $paymentRepo,
+        private readonly TenantRepositoryInterface $tenantRepo,
     ) {}
 
     /** Summary metrics for the admin dashboard */
     public function getMetrics(): array
     {
-        $subMetrics = $this->subscriptionRepo->getMetrics();
-        $plans = $this->planRepo->findAll();
-
-        // "total" reflects the number of families (tenants), not subscriptions:
-        // a tenant without a subscription row is still a family (implicitly on trial).
         $totalTenants = $this->tenantRepo->countAll();
-        $subMetrics['total'] = $totalTenants;
-        // Tenants without a subscription are implicitly on trial — fold them into the trial count.
-        $withoutSub = max(0, $totalTenants - ($subMetrics['active'] + $subMetrics['trial'] + $subMetrics['past_due']));
-        $subMetrics['trial'] += $withoutSub;
 
         return [
-            'families'  => $subMetrics,
-            'plans'     => array_map(fn($p) => $p->toArray(), $plans),
-            'mrr_euros' => round($subMetrics['mrr_cents'] / 100, 2),
+            'families'  => [
+                'total'    => $totalTenants,
+                'active'   => $totalTenants,
+                'trial'    => 0,
+                'past_due' => 0,
+                'mrr_cents' => 0,
+            ],
+            'plans'     => [],
+            'mrr_euros' => 0.0,
         ];
     }
 
-    /** Paginated list of families enriched with their subscription and plan — 3 queries total */
+    /** Paginated list of families */
     public function listFamilies(int $limit = 50, int $offset = 0): array
     {
         $tenants = $this->tenantRepo->findAll($limit, $offset);
@@ -46,26 +37,12 @@ final class AdminService
             return [];
         }
 
-        $tenantIds      = array_map(fn($t) => $t->getId(), $tenants);
-        $subsByTenantId = $this->subscriptionRepo->findByTenantIds($tenantIds);
-
-        $plansById = [];
-        foreach ($this->planRepo->findAll() as $plan) {
-            $plansById[$plan->getId()] = $plan;
-        }
-
-        $result = [];
-        foreach ($tenants as $tenant) {
-            $sub  = $subsByTenantId[$tenant->getId()] ?? null;
-            $plan = ($sub?->getPlanId()) ? ($plansById[$sub->getPlanId()] ?? null) : null;
-
-            $row                 = $tenant->toArray();
-            $row['subscription'] = $sub?->toArray();
-            $row['plan']         = $plan?->toArray();
-            $result[]            = $row;
-        }
-
-        return $result;
+        return array_map(function ($tenant) {
+            $row = $tenant->toArray();
+            $row['subscription'] = null;
+            $row['plan']         = null;
+            return $row;
+        }, $tenants);
     }
 
     /** Full detail of a single family */
@@ -76,47 +53,17 @@ final class AdminService
             throw new \ZenCoParent\Domain\Shared\Exception\NotFoundException('Family not found');
         }
 
-        $sub      = $this->subscriptionRepo->findByTenantId($tenantId);
-        $plan     = ($sub?->getPlanId()) ? $this->planRepo->findById($sub->getPlanId()) : null;
-        $payments = $this->paymentRepo->findByTenantId($tenantId, 20);
-
         return [
-            'tenant'    => $tenant->toArray(),
-            'subscription' => $sub?->toArray(),
-            'plan'      => $plan?->toArray(),
-            'payments'  => array_map(fn($p) => $p->toArray(), $payments),
+            'tenant'       => $tenant->toArray(),
+            'subscription' => null,
+            'plan'         => null,
+            'payments'     => [],
         ];
     }
 
-    /** Admin override: set per-tenant module flags (null clears and reverts to plan) */
+    /** Admin override: set per-tenant module flags */
     public function setModulesOverride(string $tenantId, ?array $modules): void
     {
         $this->tenantRepo->updateModulesOverride($tenantId, $modules);
-    }
-
-    /** Payment history (all tenants, paginated) */
-    public function listPayments(int $limit = 100, int $offset = 0): array
-    {
-        return array_map(
-            fn($p) => $p->toArray(),
-            $this->paymentRepo->findAll($limit, $offset),
-        );
-    }
-
-    // ── Plan management ──────────────────────────────────────────────────────
-
-    public function listPlans(): array
-    {
-        return array_map(fn($p) => $p->toArray(), $this->planRepo->findAll());
-    }
-
-    public function updatePlan(string $planId, array $fields): array
-    {
-        $plan = $this->planRepo->findById($planId);
-        if ($plan === null) {
-            throw new \ZenCoParent\Domain\Shared\Exception\NotFoundException('Plan not found');
-        }
-        $this->planRepo->update($planId, $fields);
-        return $this->planRepo->findById($planId)->toArray();
     }
 }

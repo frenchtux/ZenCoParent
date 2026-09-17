@@ -7,16 +7,9 @@ use ZenCoParent\Api\Controllers\AccountController;
 use ZenCoParent\Api\Controllers\AdminController;
 use ZenCoParent\Api\Controllers\MedicalAttachmentController;
 use ZenCoParent\Api\Controllers\SettingsController;
-use ZenCoParent\Api\Controllers\AdminLicenseController;
 use ZenCoParent\Api\Controllers\AuthController;
-use ZenCoParent\Api\Controllers\LicenseController;
 use ZenCoParent\Api\Controllers\NotificationController;
-use ZenCoParent\Api\Controllers\PaymentController;
-use ZenCoParent\Api\Middleware\RequireLicenseMiddleware;
 use ZenCoParent\Api\Middleware\RequireMasterKeyMiddleware;
-use ZenCoParent\Api\Middleware\RequireModuleMiddleware;
-use ZenCoParent\Application\License\LicenseService;
-use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Api\Controllers\ChildController;
 use ZenCoParent\Api\Controllers\EventController;
 use ZenCoParent\Api\Controllers\ExpenseController;
@@ -40,12 +33,6 @@ return function (App $app): void {
     // Rate limiting only in saas mode (community has no Redis)
     if (($_ENV['APP_MODE'] ?? 'saas') !== 'community') {
         $app->add(new RateLimitMiddleware($container->get(RedisRateLimiter::class)));
-    }
-
-    // ── License middleware (SaaS only — applied to all protected routes) ─────
-    $licenseMiddleware = null;
-    if (($_ENV['APP_MODE'] ?? 'saas') === 'saas') {
-        $licenseMiddleware = new RequireLicenseMiddleware($container->get(LicenseService::class));
     }
 
     // ── Public mode endpoint ─────────────────────────────────────────────────
@@ -76,66 +63,14 @@ return function (App $app): void {
               ->add(new AuthMiddleware($container->get(JWTService::class)));
     });
 
-    // ── License routes (public — accessible even when trial expired) ─────────
-    $app->get('/license',           [LicenseController::class, 'status']);
-    $app->post('/license/activate', [LicenseController::class, 'activate']);
-    // Requiert un admin connecté pour vérifier le SMTP du tenant et envoyer les emails
-    $app->post('/license/request',  [LicenseController::class, 'request'])
-        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']))
-        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)));
-
-    // ── Admin license routes (master-key protected, no JWT required) ──────────
-    if (($_ENV['APP_MODE'] ?? 'saas') === 'saas') {
-        $masterKey = $_ENV['LICENSE_MASTER_KEY'] ?? '';
-        $app->group('/admin/license', function (RouteCollectorProxy $group) use ($container): void {
-            $group->get('/status',  [AdminLicenseController::class, 'status']);
-            $group->post('/revoke', [AdminLicenseController::class, 'revoke']);
-        })->add(new RequireMasterKeyMiddleware($masterKey));
-    }
-
-    // ── Payment routes ────────────────────────────────────────────────────────
-    // ── Stripe ───────────────────────────────────────────────────────────────
-    // Webhook is public (Stripe signature verified inside the handler)
-    $app->post('/payments/webhook',                    [PaymentController::class, 'webhook']);
-    // Installation key checkout: public (no account needed to buy a key)
-    $app->post('/payments/checkout/installation-key',  [PaymentController::class, 'checkoutInstallationKey']);
-    // SaaS license checkout: admin only
-    $app->post('/payments/checkout/license',           [PaymentController::class, 'checkoutLicense'])
-        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
-        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
-
-    // ── PayPal one-shot ──────────────────────────────────────────────────────
-    // Webhook is public (PayPal signature verified inside the handler)
-    $app->post('/payments/webhook/paypal',                    [PaymentController::class, 'webhookPaypal']);
-    // Installation key: public
-    $app->post('/payments/checkout/installation-key/paypal',  [PaymentController::class, 'checkoutInstallationKeyPaypal']);
-    // Capture after PayPal redirect: public (order_id is the secret)
-    $app->post('/payments/capture/paypal',                    [PaymentController::class, 'capturePaypal']);
-    // SaaS license: admin only
-    $app->post('/payments/checkout/license/paypal',           [PaymentController::class, 'checkoutLicensePaypal'])
-        ->add(new \ZenCoParent\Api\Middleware\AuthMiddleware($container->get(JWTService::class)))
-        ->add(new \ZenCoParent\Api\Middleware\RequireRoleMiddleware(['admin']));
-
     // ── Invitation public routes (no auth) ───────────────────────────────────
     $app->get('/invitations/{token}',         [InvitationController::class, 'show']);
     $app->post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
     // ── Protected routes ─────────────────────────────────────────────────────
-    // All routes inside this outer group share: JWT auth + (SaaS) license gate.
-    // Middleware execution order (LIFO): licenseMiddleware → authMiddleware → handler.
     $authMiddleware = new AuthMiddleware($container->get(JWTService::class));
 
-    $subscriptionService = $container->get(SubscriptionService::class);
-    $moduleMiddleware    = fn(string $module) => new RequireModuleMiddleware($subscriptionService, $module);
-
-    $protectedGroup = $app->group('', function (RouteCollectorProxy $outer) use ($container, $moduleMiddleware): void {
-
-        // ── Subscription / billing (parents only) ───────────────────────────
-        $outer->get('/billing/status',                  [PaymentController::class, 'billingStatus']);
-        $outer->post('/payments/checkout/subscription', [PaymentController::class, 'checkoutSubscription'])
-              ->add(new RequireRoleMiddleware(['parent']));
-        $outer->get('/payments/portal',                 [PaymentController::class, 'portal'])
-              ->add(new RequireRoleMiddleware(['parent']));
+    $app->group('', function (RouteCollectorProxy $outer) use ($container): void {
 
         // ── Admin routes (role = admin) ──────────────────────────────────────
         $outer->group('/admin', function (RouteCollectorProxy $g) use ($container): void {
@@ -144,9 +79,6 @@ return function (App $app): void {
             $g->get('/families',                 [AdminController::class, 'listFamilies']);
             $g->get('/families/{id}',            [AdminController::class, 'getFamily']);
             $g->patch('/families/{id}/modules',  [AdminController::class, 'updateModules']);
-            $g->get('/plans',                    [AdminController::class, 'listPlans']);
-            $g->put('/plans/{id}',               [AdminController::class, 'updatePlan']);
-            $g->get('/payments',                 [AdminController::class, 'listPayments']);
             // User → Tenant assignment
             $g->get('/users/{id}/tenants',       [AdminController::class, 'getUserTenants']);
             $g->put('/users/{id}/tenants',       [AdminController::class, 'setUserTenants']);
@@ -163,11 +95,6 @@ return function (App $app): void {
             // Security settings (system-level)
             $g->get('/settings/security',        [SettingsController::class, 'getSecurity']);
             $g->put('/settings/security',        [SettingsController::class, 'putSecurity']);
-            // Payment settings (PayPal, system-level)
-            $g->get('/settings/payment',         [SettingsController::class, 'getPayment']);
-            $g->put('/settings/payment',         [SettingsController::class, 'putPayment']);
-            // SaaS tenant license status
-            $g->get('/settings/saas-license',    [SettingsController::class, 'licenseStatus']);
         })->add(new RequireRoleMiddleware(['admin']));
 
         // Users — full management
@@ -183,12 +110,11 @@ return function (App $app): void {
         });
 
         // Children — base module (always available); medical sub-route gated
-        $outer->group('/children', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
+        $outer->group('/children', function (RouteCollectorProxy $group): void {
             $group->get('',      [ChildController::class, 'index']);
             $group->post('',     [ChildController::class, 'create']);
             $group->put('/{id}', [ChildController::class, 'update']);
-            $group->get('/{id}/medical-history', [MedicalRecordController::class, 'childHistory'])
-                  ->add($moduleMiddleware('medical'));
+            $group->get('/{id}/medical-history', [MedicalRecordController::class, 'childHistory']);
         });
 
         // Events — full CRUD (always available)
@@ -200,26 +126,24 @@ return function (App $app): void {
             $group->delete('/{id}', [EventController::class, 'destroy']);
         });
 
-        // Medical records — standalone creation (module: medical)
-        // Medical record creation: no module gate — allows post-login CR entry
+        // Medical records
         $outer->post('/medical-records', [MedicalRecordController::class, 'create']);
-        $outer->delete('/medical-records/{id}', [MedicalRecordController::class, 'delete'])
-              ->add($moduleMiddleware('medical'));
+        $outer->delete('/medical-records/{id}', [MedicalRecordController::class, 'delete']);
 
-        // Medical attachments (module: medical)
-        $outer->group('/medical-records/{id}/attachments', function (RouteCollectorProxy $group) use ($moduleMiddleware): void {
+        // Medical attachments
+        $outer->group('/medical-records/{id}/attachments', function (RouteCollectorProxy $group): void {
             $group->get('',                            [MedicalAttachmentController::class, 'index']);
             $group->post('',                           [MedicalAttachmentController::class, 'upload']);
             $group->get('/{attachmentId}/download',    [MedicalAttachmentController::class, 'download']);
             $group->delete('/{attachmentId}',          [MedicalAttachmentController::class, 'delete']);
-        })->add($moduleMiddleware('medical'));
+        });
 
-        // Photos (module: photos)
+        // Photos
         $outer->group('/photos', function (RouteCollectorProxy $group): void {
             $group->get('',         [PhotoController::class, 'index']);
             $group->post('',        [PhotoController::class, 'upload']);
             $group->delete('/{id}', [PhotoController::class, 'destroy']);
-        })->add($moduleMiddleware('photos'));
+        });
 
         // Invitations — protected management
         $outer->group('/invitations', function (RouteCollectorProxy $group): void {
@@ -227,15 +151,15 @@ return function (App $app): void {
             $group->post('', [InvitationController::class, 'create']);
         });
 
-        // Expenses (module: expenses)
+        // Expenses
         $outer->group('/expenses', function (RouteCollectorProxy $group): void {
             $group->get('',         [ExpenseController::class, 'index']);
             $group->post('',        [ExpenseController::class, 'create']);
             $group->put('/{id}',    [ExpenseController::class, 'update']);
             $group->delete('/{id}', [ExpenseController::class, 'destroy']);
-        })->add($moduleMiddleware('expenses'));
+        });
 
-        // Threads + Messages (module: messages)
+        // Threads + Messages
         $outer->group('/threads', function (RouteCollectorProxy $group): void {
             $group->get('',    [ThreadController::class, 'index']);
             $group->post('',   [ThreadController::class, 'create']);
@@ -243,7 +167,7 @@ return function (App $app): void {
             $group->get('/{id}/messages',                     [ThreadController::class, 'messages']);
             $group->post('/{id}/messages',                    [ThreadController::class, 'sendMessage']);
             $group->patch('/{id}/messages/{msgId}/read',      [ThreadController::class, 'markRead']);
-        })->add($moduleMiddleware('messages'));
+        });
 
         // Notifications summary (unread count)
         $outer->get('/notifications/summary', [NotificationController::class, 'summary']);
@@ -253,9 +177,4 @@ return function (App $app): void {
         $outer->delete('/account',      [AccountController::class, 'delete']);
 
     })->add($authMiddleware);
-
-    // Apply license gate on top of auth (SaaS only; null in community mode)
-    if ($licenseMiddleware !== null) {
-        $protectedGroup->add($licenseMiddleware);
-    }
 };

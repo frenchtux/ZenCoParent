@@ -5,17 +5,9 @@ use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use ZenCoParent\Application\Admin\AdminService;
-use ZenCoParent\Application\License\LicenseService;
-use ZenCoParent\Application\Payment\PaypalWebhookHandler;
-use ZenCoParent\Application\Payment\StripeWebhookHandler;
-use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Application\User\DeleteAccountHandler;
 use ZenCoParent\Application\User\GdprExportHandler;
 use ZenCoParent\Domain\Auth\OAuthAccountRepositoryInterface;
-use ZenCoParent\Domain\License\LicenseRepositoryInterface;
-use ZenCoParent\Domain\Payment\PaymentRepositoryInterface;
-use ZenCoParent\Domain\Plan\PlanRepositoryInterface;
-use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Child\ChildRepositoryInterface;
 use ZenCoParent\Domain\Event\EventRepositoryInterface;
@@ -280,8 +272,6 @@ return function (ContainerBuilder $containerBuilder) {
             $clientSecret = $settings->getSystemSetting('oauth_google_client_secret')
                             ?? $authConfig['google']['client_secret'];
 
-            // redirect_uri: env has priority (must match Google Console exactly);
-            // if env is empty, derive from DB app_url or APP_URL env var.
             if ($authConfig['google']['redirect_uri'] !== '') {
                 $redirectUri = $authConfig['google']['redirect_uri'];
             } else {
@@ -304,118 +294,9 @@ return function (ContainerBuilder $containerBuilder) {
             ]);
         },
 
-        // License repository + service (SaaS only)
-        LicenseRepositoryInterface::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLLicenseRepository(
-                $c->get(\PDO::class)
-            );
-        },
-
-        LicenseService::class => function (ContainerInterface $c) {
-            return new LicenseService(
-                $c->get(LicenseRepositoryInterface::class),
-                logger: $c->get(LoggerInterface::class),
-            );
-        },
-
-        \ZenCoParent\Api\Controllers\LicenseController::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Api\Controllers\LicenseController(
-                $c->get(LicenseService::class),
-                $c->get(TenantSettingsService::class),
-                $c->get(MailerInterface::class),
-            );
-        },
-
-        // ── Plan / Subscription / Payment repositories (SaaS only) ─────────────
-        PlanRepositoryInterface::class => function (ContainerInterface $c) {
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePlanRepository()
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPlanRepository(
-                    $c->get(\PDO::class)
-                );
-        },
-
-        SubscriptionRepositoryInterface::class => function (ContainerInterface $c) {
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteSubscriptionRepository()
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLSubscriptionRepository(
-                    $c->get(\PDO::class)
-                );
-        },
-
-        PaymentRepositoryInterface::class => function (ContainerInterface $c) {
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePaymentRepository()
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPaymentRepository(
-                    $c->get(\PDO::class)
-                );
-        },
-
-        // ── Application services ─────────────────────────────────────────────
-        SubscriptionService::class => function (ContainerInterface $c) {
-            return new SubscriptionService(
-                $c->get(SubscriptionRepositoryInterface::class),
-                $c->get(PlanRepositoryInterface::class),
-                $c->get(TenantRepositoryInterface::class),
-            );
-        },
-
         AdminService::class => function (ContainerInterface $c) {
             return new AdminService(
                 $c->get(TenantRepositoryInterface::class),
-                $c->get(SubscriptionRepositoryInterface::class),
-                $c->get(PlanRepositoryInterface::class),
-                $c->get(PaymentRepositoryInterface::class),
-            );
-        },
-
-        \ZenCoParent\Infrastructure\Payment\PaypalService::class => function (ContainerInterface $c) {
-            $settings = $c->get(TenantSettingsService::class);
-
-            $clientId   = $settings->getSystemSetting('paypal_client_id')     ?? ($_ENV['PAYPAL_CLIENT_ID']     ?? '');
-            $secret     = $settings->getSystemSetting('paypal_client_secret') ?? ($_ENV['PAYPAL_CLIENT_SECRET'] ?? '');
-            $mode       = $settings->getSystemSetting('paypal_mode')          ?? ($_ENV['PAYPAL_MODE']          ?? 'sandbox');
-            $webhookId  = $settings->getSystemSetting('paypal_webhook_id')    ?? ($_ENV['PAYPAL_WEBHOOK_ID']    ?? '');
-            $appUrl     = rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/');
-
-            return new \ZenCoParent\Infrastructure\Payment\PaypalService(
-                clientId:    $clientId,
-                clientSecret: $secret,
-                mode:        $mode,
-                webhookId:   $webhookId,
-                appUrl:      $appUrl,
-                paymentRepo: $c->get(PaymentRepositoryInterface::class),
-            );
-        },
-
-        PaypalWebhookHandler::class => function (ContainerInterface $c) {
-            return new PaypalWebhookHandler(
-                $c->get(PaymentRepositoryInterface::class),
-                $c->get(LoggerInterface::class),
-                $c->get(TenantSettingsService::class),
-            );
-        },
-
-        \ZenCoParent\Infrastructure\Payment\StripeService::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Infrastructure\Payment\StripeService(
-                secretKey:              $_ENV['STRIPE_SECRET_KEY'] ?? '',
-                webhookSecret:          $_ENV['STRIPE_WEBHOOK_SECRET'] ?? '',
-                installationKeyPriceId: $_ENV['STRIPE_INSTALLATION_KEY_PRICE_ID'] ?? '',
-                appUrl:                 rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/'),
-                paymentRepo:            $c->get(PaymentRepositoryInterface::class),
-            );
-        },
-
-        // ── Payment + Admin controllers ──────────────────────────────────────
-        \ZenCoParent\Api\Controllers\PaymentController::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Api\Controllers\PaymentController(
-                $c->get(\ZenCoParent\Infrastructure\Payment\StripeService::class),
-                $c->get(PlanRepositoryInterface::class),
-                $c->get(SubscriptionRepositoryInterface::class),
-                $c->get(StripeWebhookHandler::class),
-                $c->get(\ZenCoParent\Infrastructure\Payment\PaypalService::class),
-                $c->get(PaypalWebhookHandler::class),
-                $c->get(PaymentRepositoryInterface::class),
             );
         },
 
@@ -447,7 +328,6 @@ return function (ContainerBuilder $containerBuilder) {
 
         // ── Mailer ───────────────────────────────────────────────────────────
         MailerInterface::class => function (ContainerInterface $c) {
-            // Env-based fallback mailer (used when no tenant DB config is available)
             $host = $_ENV['MAIL_HOST'] ?? '';
             $fallback = ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community')
                 ? new \ZenCoParent\Infrastructure\Notification\NullMailer()
@@ -461,24 +341,9 @@ return function (ContainerBuilder $containerBuilder) {
                     fromName:    $_ENV['MAIL_FROM_NAME']    ?? 'ZenCoParent',
                 );
 
-            // Wrap with TenantAwareMailer so each tenant can override SMTP via admin UI
             return new \ZenCoParent\Infrastructure\Notification\TenantAwareMailer(
                 $c->get(TenantSettingsService::class),
                 $fallback,
-            );
-        },
-
-        // ── Stripe webhook handler ────────────────────────────────────────────
-        StripeWebhookHandler::class => function (ContainerInterface $c) {
-            return new StripeWebhookHandler(
-                $c->get(PaymentRepositoryInterface::class),
-                $c->get(SubscriptionRepositoryInterface::class),
-                $c->get(PlanRepositoryInterface::class),
-                $c->get(SubscriptionService::class),
-                $c->get(UserRepositoryInterface::class),
-                $c->get(MailerInterface::class),
-                $c->get(LoggerInterface::class),
-                $c->get(TenantSettingsService::class),
             );
         },
 
@@ -500,9 +365,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new DeleteAccountHandler(
                 $c->get(UserRepositoryInterface::class),
                 $c->get(TenantRepositoryInterface::class),
-                $c->get(SubscriptionRepositoryInterface::class),
                 $c->get(RefreshTokenRepositoryInterface::class),
-                $c->get(SubscriptionService::class),
             );
         },
 
@@ -517,12 +380,6 @@ return function (ContainerBuilder $containerBuilder) {
             return new \ZenCoParent\Api\Controllers\AccountController(
                 $c->get(GdprExportHandler::class),
                 $c->get(DeleteAccountHandler::class),
-            );
-        },
-
-        \ZenCoParent\Api\Controllers\AdminLicenseController::class => function (ContainerInterface $c) {
-            return new \ZenCoParent\Api\Controllers\AdminLicenseController(
-                $c->get(LicenseService::class)
             );
         },
 

@@ -15,20 +15,6 @@ final class SettingsController
         private readonly TenantSettingsService $settings,
     ) {}
 
-    /** GET /admin/license/status — check tenant SaaS license */
-    public function licenseStatus(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
-    {
-        $tenantId = (string) $request->getAttribute('tenantId');
-        $active   = $this->settings->get($tenantId, 'saas_license_active') === '1';
-        $paidAt   = $this->settings->get($tenantId, 'saas_license_paid_at');
-        return ApiResponse::success($response, [
-            'active'   => $active,
-            'paid_at'  => $paidAt,
-            'price'    => 150.00,
-            'currency' => 'EUR',
-        ]);
-    }
-
     /** GET /admin/settings/mail */
     public function getMail(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
@@ -102,27 +88,6 @@ final class SettingsController
 
         $this->settings->setSecurityConfig($body);
         return ApiResponse::success($response, $this->settings->getSecurityConfig());
-    }
-
-    // ── Payment ───────────────────────────────────────────────────────────────
-
-    /** GET /admin/settings/payment */
-    public function getPayment(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
-    {
-        return ApiResponse::success($response, $this->settings->getPaymentConfig());
-    }
-
-    /** PUT /admin/settings/payment */
-    public function putPayment(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
-    {
-        $body = (array) $request->getParsedBody();
-
-        if (isset($body['paypal_mode']) && !in_array($body['paypal_mode'], ['sandbox', 'live'], true)) {
-            return ApiResponse::error($response, "paypal_mode doit être 'sandbox' ou 'live'.", 400);
-        }
-
-        $this->settings->setPaymentConfig($body);
-        return ApiResponse::success($response, $this->settings->getPaymentConfig());
     }
 
     /** POST /admin/settings/mail/test */

@@ -24,17 +24,4 @@ final class NullMailer implements MailerInterface
         \DateTimeImmutable $date,
     ): void {}
 
-    public function sendLicenseRequestToVendor(
-        string $vendorEmail,
-        string $installationKey,
-        string $adminEmail,
-        string $instanceId,
-    ): void {}
-
-    public function sendLicensePaymentInstructions(
-        string $to,
-        string $installationKey,
-        string $purchaseUrl,
-        string $priceLabel,
-    ): void {}
 }

@@ -3,10 +3,8 @@ declare(strict_types=1);
 
 namespace ZenCoParent\Application\User;
 
-use ZenCoParent\Application\Subscription\SubscriptionService;
 use ZenCoParent\Domain\Auth\RefreshTokenRepositoryInterface;
 use ZenCoParent\Domain\Shared\Exception\NotFoundException;
-use ZenCoParent\Domain\Subscription\SubscriptionRepositoryInterface;
 use ZenCoParent\Domain\Tenant\TenantRepositoryInterface;
 use ZenCoParent\Domain\User\UserRepositoryInterface;
 
@@ -15,9 +13,7 @@ final class DeleteAccountHandler
     public function __construct(
         private readonly UserRepositoryInterface         $userRepo,
         private readonly TenantRepositoryInterface       $tenantRepo,
-        private readonly SubscriptionRepositoryInterface $subscriptionRepo,
         private readonly RefreshTokenRepositoryInterface $refreshRepo,
-        private readonly SubscriptionService             $subscriptionService,
     ) {}
 
     public function handle(string $userId, string $tenantId, string $password): void
@@ -41,12 +37,7 @@ final class DeleteAccountHandler
         ));
 
         if ($user->getRole()->value === 'admin' && $adminCount === 0) {
-            // Last admin leaving: cancel subscription + deactivate tenant
-            try {
-                $this->subscriptionService->cancel($tenantId);
-            } catch (\Throwable) {
-                // Best-effort
-            }
+            // Last admin leaving: deactivate tenant
             $this->tenantRepo->setActive($tenantId, false);
         }
 

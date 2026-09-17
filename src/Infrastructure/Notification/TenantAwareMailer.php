@@ -35,16 +35,6 @@ final class TenantAwareMailer implements MailerInterface
         $this->resolveMailer($to)->sendPaymentReceipt($to, $firstName, $amountCents, $currency, $date);
     }
 
-    public function sendLicenseRequestToVendor(string $vendorEmail, string $installationKey, string $adminEmail, string $instanceId): void
-    {
-        $this->resolveMailer($vendorEmail)->sendLicenseRequestToVendor($vendorEmail, $installationKey, $adminEmail, $instanceId);
-    }
-
-    public function sendLicensePaymentInstructions(string $to, string $installationKey, string $purchaseUrl, string $priceLabel): void
-    {
-        $this->resolveMailer($to)->sendLicensePaymentInstructions($to, $installationKey, $purchaseUrl, $priceLabel);
-    }
-
     /**
      * Attempt to build an SMTP mailer from the current request's tenant settings.
      * Falls back to the env-based mailer if no tenant context or no DB config.

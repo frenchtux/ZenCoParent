@@ -23,25 +23,17 @@
       <div id="loading-state" class="loading-state"><div class="spinner"></div><span>Chargement...</span></div>
       <div id="family-detail" style="display:none;">
 
-        <div class="grid-2">
-          <!-- Subscription info -->
-          <div class="card">
-            <div class="card-header"><h2 class="card-title">Abonnement</h2></div>
-            <div class="card-body" id="sub-info"></div>
+        <!-- Module overrides -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Modules</h2>
+            <small class="text-muted">Override admin</small>
           </div>
-
-          <!-- Module overrides -->
-          <div class="card">
-            <div class="card-header">
-              <h2 class="card-title">Modules</h2>
-              <small class="text-muted">Override admin (null = plan)</small>
-            </div>
-            <div class="card-body">
-              <div style="display:flex;flex-direction:column;gap:var(--space-3);" id="module-toggles"></div>
-              <div style="margin-top:var(--space-4);display:flex;gap:var(--space-3);">
-                <button class="btn btn-primary btn-sm" id="save-modules">Enregistrer</button>
-                <button class="btn btn-ghost btn-sm" id="reset-modules">Réinitialiser (plan)</button>
-              </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:var(--space-3);" id="module-toggles"></div>
+            <div style="margin-top:var(--space-4);display:flex;gap:var(--space-3);">
+              <button class="btn btn-primary btn-sm" id="save-modules">Enregistrer</button>
+              <button class="btn btn-ghost btn-sm" id="reset-modules">Réinitialiser</button>
             </div>
           </div>
         </div>

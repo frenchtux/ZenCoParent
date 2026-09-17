@@ -69,26 +69,6 @@ final class AdminController
         return ApiResponse::success($response, ['updated' => true]);
     }
 
-    /** GET /admin/plans */
-    public function listPlans(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
-        return ApiResponse::success($response, $this->adminService->listPlans());
-    }
-
-    /** PUT /admin/plans/{id} */
-    public function updatePlan(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
-        $body = (array) $request->getParsedBody();
-        $plan = $this->adminService->updatePlan($args['id'], $body);
-        return ApiResponse::success($response, $plan);
-    }
-
     // ─── User → Tenant assignment ────────────────────────────────────────────
 
     /** GET /admin/users/{id}/tenants — list tenants accessible by a user */
@@ -136,16 +116,4 @@ final class AdminController
         return ApiResponse::success($response, $tenants);
     }
 
-    /** GET /admin/payments */
-    public function listPayments(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
-        $params = $request->getQueryParams();
-        $limit  = min((int) ($params['limit'] ?? 100), 500);
-        $offset = max((int) ($params['offset'] ?? 0), 0);
-
-        return ApiResponse::success($response, $this->adminService->listPayments($limit, $offset));
-    }
 }
