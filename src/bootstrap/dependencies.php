@@ -272,6 +272,8 @@ return function (ContainerBuilder $containerBuilder) {
             $clientSecret = $settings->getSystemSetting('oauth_google_client_secret')
                             ?? $authConfig['google']['client_secret'];
 
+            // redirect_uri: env has priority (must match Google Console exactly);
+            // if env is empty, derive from DB app_url or APP_URL env var.
             if ($authConfig['google']['redirect_uri'] !== '') {
                 $redirectUri = $authConfig['google']['redirect_uri'];
             } else {

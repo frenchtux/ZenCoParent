@@ -29,20 +29,14 @@
   async function loadDashboard() {
     const res = await api.get('/admin/dashboard');
     if (!res.success) return;
-    const d = res.data;
-    document.getElementById('kpi-total').textContent  = d.families.total;
-    document.getElementById('kpi-active').textContent = d.families.active;
-    document.getElementById('kpi-trial').textContent  = d.families.trial;
-    if (document.getElementById('kpi-mrr')) {
-      document.getElementById('kpi-mrr').textContent = (d.mrr_euros || 0).toFixed(2) + ' €';
-    }
+    document.getElementById('kpi-total').textContent = res.data.families.total;
   }
 
   // ── Families tab ──────────────────────────────────────────────────────────
   function renderFamiliesTable(families) {
     const tbody = document.getElementById('families-tbody');
     if (!families.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Aucune famille.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Aucune famille.</td></tr>';
     } else {
       tbody.innerHTML = families.map(f => {
         return `<tr>

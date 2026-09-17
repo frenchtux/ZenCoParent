@@ -34,7 +34,7 @@
     return;
   }
 
-  const { tenant, payments } = res.data;
+  const { tenant } = res.data;
 
   document.getElementById('page-title').textContent    = escapeHtml(tenant.name);
   document.getElementById('page-subtitle').textContent = tenant.slug;
@@ -89,26 +89,4 @@
     }
   });
 
-  // ── Payments ──────────────────────────────────────────────────────────────
-  const STATUS_PAY = {
-    succeeded: ['badge-success', 'Réussi'],
-    pending:   ['badge-warning', 'En attente'],
-    failed:    ['badge-error',   'Échoué'],
-    refunded:  ['badge-neutral', 'Remboursé'],
-  };
-
-  const tbody = document.getElementById('payments-tbody');
-  if (!payments || !payments.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Aucun paiement.</td></tr>';
-  } else {
-    tbody.innerHTML = payments.map(p => {
-      const [cls, label] = STATUS_PAY[p.status] || ['badge-neutral', p.status];
-      return `<tr>
-        <td><small>${new Date(p.created_at).toLocaleDateString('fr-FR')}</small></td>
-        <td><span class="badge badge-neutral">${p.type || '—'}</span></td>
-        <td><strong>${(p.amount_cents / 100).toFixed(2)} ${p.currency.toUpperCase()}</strong></td>
-        <td><span class="badge ${cls}">${label}</span></td>
-      </tr>`;
-    }).join('');
-  }
 }());

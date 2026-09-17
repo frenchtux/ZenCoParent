@@ -14,35 +14,20 @@ final class AdminService
     /** Summary metrics for the admin dashboard */
     public function getMetrics(): array
     {
-        $totalTenants = $this->tenantRepo->countAll();
-
         return [
-            'families'  => [
-                'total'    => $totalTenants,
-                'active'   => $totalTenants,
-                'trial'    => 0,
-                'past_due' => 0,
-                'mrr_cents' => 0,
+            'families' => [
+                'total' => $this->tenantRepo->countAll(),
             ],
-            'plans'     => [],
-            'mrr_euros' => 0.0,
         ];
     }
 
     /** Paginated list of families */
     public function listFamilies(int $limit = 50, int $offset = 0): array
     {
-        $tenants = $this->tenantRepo->findAll($limit, $offset);
-        if (empty($tenants)) {
-            return [];
-        }
-
-        return array_map(function ($tenant) {
-            $row = $tenant->toArray();
-            $row['subscription'] = null;
-            $row['plan']         = null;
-            return $row;
-        }, $tenants);
+        return array_map(
+            fn($tenant) => $tenant->toArray(),
+            $this->tenantRepo->findAll($limit, $offset),
+        );
     }
 
     /** Full detail of a single family */
@@ -53,12 +38,7 @@ final class AdminService
             throw new \ZenCoParent\Domain\Shared\Exception\NotFoundException('Family not found');
         }
 
-        return [
-            'tenant'       => $tenant->toArray(),
-            'subscription' => null,
-            'plan'         => null,
-            'payments'     => [],
-        ];
+        return ['tenant' => $tenant->toArray()];
     }
 
     /** Admin override: set per-tenant module flags */
