@@ -130,8 +130,8 @@ final class ThreadControllerTest extends IntegrationTestCase
         $body = $this->decodeJson($response);
         $this->assertTrue($body['success']);
         $this->assertSame('Hello from Alice!', $body['data']['content']);
-        $this->assertSame($this->userId, $body['data']['senderId']);
-        $this->assertFalse($body['data']['isRead']);
+        $this->assertSame($this->userId, $body['data']['sender_id']);
+        $this->assertFalse($body['data']['is_read']);
     }
 
     public function test_send_message_returns_400_for_empty_content(): void
