@@ -9,11 +9,11 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Psr7\Factory\ResponseFactory;
 use ZenCoParent\Api\Response\ApiResponse;
-use ZenCoParent\Infrastructure\Cache\RedisRateLimiter;
+use ZenCoParent\Infrastructure\Cache\RateLimiterInterface;
 
 final class RateLimitMiddleware implements MiddlewareInterface
 {
-    public function __construct(private RedisRateLimiter $limiter) {}
+    public function __construct(private RateLimiterInterface $limiter) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {

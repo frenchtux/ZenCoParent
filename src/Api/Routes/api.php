@@ -23,24 +23,15 @@ use ZenCoParent\Api\Middleware\CsrfMiddleware;
 use ZenCoParent\Api\Middleware\RateLimitMiddleware;
 use ZenCoParent\Api\Middleware\RequireRoleMiddleware;
 use ZenCoParent\Infrastructure\Auth\JWTService;
-use ZenCoParent\Infrastructure\Cache\RedisRateLimiter;
+use ZenCoParent\Infrastructure\Cache\RateLimiterInterface;
 
 return function (App $app): void {
     $container = $app->getContainer();
 
     // ── Global middleware (applied to every route, outermost = last added) ──
     $app->add(new CsrfMiddleware());
-    // Rate limiting only in saas mode (community has no Redis)
-    if (($_ENV['APP_MODE'] ?? 'saas') !== 'community') {
-        $app->add(new RateLimitMiddleware($container->get(RedisRateLimiter::class)));
-    }
-
-    // ── Public mode endpoint ─────────────────────────────────────────────────
-    $app->get('/mode', function ($request, $response) {
-        $data = ['mode' => $_ENV['APP_MODE'] ?? 'saas', 'version' => '1.0'];
-        $response->getBody()->write(json_encode(['success' => true, 'data' => $data]));
-        return $response->withHeader('Content-Type', 'application/json');
-    });
+    // No-op when Redis is not configured.
+    $app->add(new RateLimitMiddleware($container->get(RateLimiterInterface::class)));
 
     // ── Auth routes (no JWT required) ────────────────────────────────────────
     $app->group('/auth', function (RouteCollectorProxy $group) use ($container): void {

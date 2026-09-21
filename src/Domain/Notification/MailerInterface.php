@@ -14,12 +14,4 @@ interface MailerInterface
         string $invitationUrl,
     ): void;
 
-    public function sendPaymentReceipt(
-        string             $to,
-        string             $firstName,
-        int                $amountCents,
-        string             $currency,
-        \DateTimeImmutable $date,
-    ): void;
-
 }

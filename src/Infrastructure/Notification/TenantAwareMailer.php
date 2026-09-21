@@ -30,11 +30,6 @@ final class TenantAwareMailer implements MailerInterface
         $this->resolveMailer($to)->sendInvitation($to, $inviterName, $familyName, $invitationUrl);
     }
 
-    public function sendPaymentReceipt(string $to, string $firstName, int $amountCents, string $currency, \DateTimeImmutable $date): void
-    {
-        $this->resolveMailer($to)->sendPaymentReceipt($to, $firstName, $amountCents, $currency, $date);
-    }
-
     /**
      * Attempt to build an SMTP mailer from the current request's tenant settings.
      * Falls back to the env-based mailer if no tenant context or no DB config.

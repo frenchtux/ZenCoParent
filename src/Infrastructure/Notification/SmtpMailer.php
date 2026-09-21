@@ -70,42 +70,6 @@ final class SmtpMailer implements MailerInterface
         );
     }
 
-    public function sendPaymentReceipt(
-        string             $to,
-        string             $firstName,
-        int                $amountCents,
-        string             $currency,
-        \DateTimeImmutable $date,
-    ): void {
-        $name    = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
-        $amount  = number_format($amountCents / 100, 2, ',', "\u{202F}");
-        $curr    = strtoupper($currency);
-        $dateStr = $date->format('d/m/Y');
-
-        $this->send(
-            to:      $to,
-            subject: "Reçu de paiement ZenCoParent — {$amount} {$curr}",
-            html:    $this->layout(
-                title:   'Reçu de paiement',
-                heading: 'Votre paiement a été reçu',
-                body:    "<p>Bonjour <strong>{$name}</strong>,</p>
-                          <p>Nous confirmons la réception de votre paiement :</p>
-                          <table style=\"width:100%;border-collapse:collapse;margin:16px 0\">
-                            <tr style=\"border-bottom:1px solid #e5e7eb\">
-                              <td style=\"padding:8px 0;color:#6b7280\">Date</td>
-                              <td style=\"padding:8px 0;text-align:right\">{$dateStr}</td>
-                            </tr>
-                            <tr>
-                              <td style=\"padding:8px 0;font-weight:600\">Montant</td>
-                              <td style=\"padding:8px 0;text-align:right;font-weight:600\">{$amount}&nbsp;{$curr}</td>
-                            </tr>
-                          </table>
-                          <p style=\"color:#6b7280;font-size:.85em\">Merci pour votre confiance.</p>",
-            ),
-            text: "Bonjour {$firstName}, votre paiement de {$amount} {$curr} du {$dateStr} a bien été reçu.",
-        );
-    }
-
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private function send(string $to, string $subject, string $html, string $text): void

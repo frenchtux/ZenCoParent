@@ -36,6 +36,7 @@ use ZenCoParent\Application\User\UpdateUserHandler;
 use ZenCoParent\Infrastructure\Auth\GoogleOAuthService;
 use ZenCoParent\Infrastructure\Auth\JWTService;
 use ZenCoParent\Infrastructure\Cache\NullRateLimiter;
+use ZenCoParent\Infrastructure\Cache\RateLimiterInterface;
 use ZenCoParent\Infrastructure\Cache\RedisRateLimiter;
 use ZenCoParent\Infrastructure\Database\Connection;
 use ZenCoParent\Infrastructure\Persistence\PDOTransactionManager;
@@ -46,59 +47,45 @@ return function (ContainerBuilder $containerBuilder) {
         // PDO
         \PDO::class => fn() => Connection::getInstance(),
 
-        // Repos — bind interface to concrete based on APP_MODE
+        // Repos
         UserRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteUserRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserRepository($pdo);
         },
 
         ChildRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteChildRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLChildRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLChildRepository($pdo);
         },
 
         TenantRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteTenantRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLTenantRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLTenantRepository($pdo);
         },
 
         RefreshTokenRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteRefreshTokenRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLRefreshTokenRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLRefreshTokenRepository($pdo);
         },
 
         OAuthAccountRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteOAuthAccountRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLOAuthAccountRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLOAuthAccountRepository($pdo);
         },
 
         EventRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteEventRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLEventRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLEventRepository($pdo);
         },
 
         MedicalRecordRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMedicalRecordRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalRecordRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalRecordRepository($pdo);
         },
 
-        // File storage — MinIO for SaaS, local disk for Community
+        // File storage — MinIO is optional; without it, files live on local disk.
         FileStorageInterface::class => function () {
-            if (($_ENV['APP_MODE'] ?? 'saas') === 'community') {
+            if (($_ENV['MINIO_ENDPOINT'] ?? '') === '') {
                 $basePath = $_ENV['STORAGE_PATH'] ?? (dirname(__DIR__, 2) . '/storage');
                 $baseUrl  = $_ENV['STORAGE_URL']  ?? '/storage';
                 return new \ZenCoParent\Infrastructure\Storage\LocalStorageService($basePath, $baseUrl);
@@ -115,37 +102,27 @@ return function (ContainerBuilder $containerBuilder) {
 
         PhotoRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLitePhotoRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPhotoRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPhotoRepository($pdo);
         },
 
         InvitationRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteInvitationRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLInvitationRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLInvitationRepository($pdo);
         },
 
         ExpenseRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteExpenseRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLExpenseRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLExpenseRepository($pdo);
         },
 
         ThreadRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteThreadRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLThreadRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLThreadRepository($pdo);
         },
 
         MessageRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMessageRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMessageRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMessageRepository($pdo);
         },
 
         TransactionManagerInterface::class => function (ContainerInterface $c) {
@@ -231,9 +208,7 @@ return function (ContainerBuilder $containerBuilder) {
 
         MedicalAttachmentRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteMedicalAttachmentRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalAttachmentRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLMedicalAttachmentRepository($pdo);
         },
 
         TenantSettingsService::class => function (ContainerInterface $c) {
@@ -251,9 +226,7 @@ return function (ContainerBuilder $containerBuilder) {
 
         UserTenantAccessRepositoryInterface::class => function (ContainerInterface $c) {
             $pdo = $c->get(\PDO::class);
-            return ($_ENV['APP_MODE'] ?? 'saas') === 'community'
-                ? new \ZenCoParent\Infrastructure\Persistence\SQLite\SQLiteUserTenantAccessRepository($pdo)
-                : new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserTenantAccessRepository($pdo);
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLUserTenantAccessRepository($pdo);
         },
 
         // JWT Service
@@ -331,7 +304,7 @@ return function (ContainerBuilder $containerBuilder) {
         // ── Mailer ───────────────────────────────────────────────────────────
         MailerInterface::class => function (ContainerInterface $c) {
             $host = $_ENV['MAIL_HOST'] ?? '';
-            $fallback = ($host === '' || ($_ENV['APP_MODE'] ?? 'saas') === 'community')
+            $fallback = $host === ''
                 ? new \ZenCoParent\Infrastructure\Notification\NullMailer()
                 : new \ZenCoParent\Infrastructure\Notification\SmtpMailer(
                     host:        $host,
@@ -385,9 +358,9 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
 
-        // Rate Limiter — NullRateLimiter in community mode (no Redis)
-        RedisRateLimiter::class => function (ContainerInterface $c) {
-            if (($_ENV['APP_MODE'] ?? 'saas') === 'community') {
+        // Rate Limiter — Redis is optional; without it, requests are not limited.
+        RateLimiterInterface::class => function (ContainerInterface $c) {
+            if (($_ENV['REDIS_HOST'] ?? '') === '') {
                 return new NullRateLimiter();
             }
             $authConfig = require __DIR__ . '/../Config/auth.php';

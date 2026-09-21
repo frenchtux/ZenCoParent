@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ZenCoParent\Infrastructure\Cache;
 
-final class RedisRateLimiter
+final class RedisRateLimiter implements RateLimiterInterface
 {
     public function __construct(
         private \Predis\Client $redis,

@@ -8,5 +8,4 @@ return [
     'database'   => $_ENV['DB_DATABASE']   ?? 'zencoparent',
     'username'   => $_ENV['DB_USERNAME']   ?? '',
     'password'   => $_ENV['DB_PASSWORD']   ?? '',
-    'file'       => $_ENV['DB_FILE']       ?? 'storage/database.sqlite',
 ];

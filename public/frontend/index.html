@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ZenCoParent — Connexion</title>
   <link rel="stylesheet" href="/frontend/css/design-system.css" />
+  <link rel="stylesheet" href="/frontend/css/theme.css" />
   <style>
     body {
       min-height: 100vh;
@@ -376,16 +377,6 @@
   </main>
 
   <script src="/frontend/js/api.js"></script>
-  <script>
-    // Inject SaaS theme based on /mode API
-    fetch('/mode').then(r => r.json()).then(function (res) {
-      if (res && res.data && res.data.mode === 'saas') {
-        const l = document.createElement('link');
-        l.rel = 'stylesheet'; l.href = '/frontend/css/theme-saas.css';
-        document.head.appendChild(l);
-      }
-    }).catch(function () {});
-  </script>
   <script>
     (function () {
       // Redirect if already logged in

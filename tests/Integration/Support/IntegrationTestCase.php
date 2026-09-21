@@ -15,18 +15,18 @@ abstract class IntegrationTestCase extends TestCase
     protected App $app;
     protected \PDO $pdo;
 
-    private static string $dbFile;
+    private static string $schema;
     private static string $storageDir;
 
     protected function setUp(): void
     {
-        self::$dbFile     = sys_get_temp_dir() . '/zencoparent_test_' . uniqid() . '.sqlite';
+        self::$schema     = 'test_' . bin2hex(random_bytes(8));
         self::$storageDir = sys_get_temp_dir() . '/zencoparent_storage_' . uniqid();
         mkdir(self::$storageDir, 0755, true);
 
         $_ENV['APP_ENV']      = 'testing';
-        $_ENV['APP_MODE']     = 'community';
-        $_ENV['DB_FILE']      = self::$dbFile;
+        $_ENV['DB_SCHEMA']    = self::$schema;
+        $_ENV['REDIS_HOST']   = '';
         $_ENV['JWT_SECRET']   = 'test-secret-that-is-long-enough-for-hs256-testing';
         $_ENV['CSRF_SECRET']  = 'test-csrf-secret';
         $_ENV['APP_SECRET']   = 'test-app-secret';
@@ -34,16 +34,27 @@ abstract class IntegrationTestCase extends TestCase
         $_ENV['STORAGE_PATH'] = self::$storageDir;
         $_ENV['STORAGE_URL']  = 'http://localhost/storage';
 
-        $this->pdo = new \PDO('sqlite:' . self::$dbFile, options: [
-            \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
-            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-        ]);
-        $this->pdo->exec('PRAGMA foreign_keys = ON');
-        $this->pdo->exec('PRAGMA journal_mode = WAL');
+        $this->pdo = new \PDO(
+            sprintf('pgsql:host=%s;port=%s;dbname=%s',
+                $_ENV['DB_HOST']     ?? 'postgres',
+                $_ENV['DB_PORT']     ?? '5432',
+                $_ENV['DB_DATABASE'] ?? 'zencoparent',
+            ),
+            $_ENV['DB_USERNAME'] ?? 'zencoparent',
+            $_ENV['DB_PASSWORD'] ?? '',
+            [
+                \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                \PDO::ATTR_EMULATE_PREPARES   => false,
+            ],
+        );
+        $this->pdo->exec('CREATE SCHEMA "' . self::$schema . '"');
+        $this->pdo->exec('SET search_path TO "' . self::$schema . '"');
+        $this->pdo->exec("SET TIME ZONE 'UTC'");
 
         $this->runMigrations();
 
-        // Reset the DB singleton so it picks up the test DB
+        // Reset the DB singleton so it picks up the test schema
         \ZenCoParent\Infrastructure\Database\Connection::reset();
 
         $this->app = require __DIR__ . '/../../../src/bootstrap/app.php';
@@ -52,10 +63,10 @@ abstract class IntegrationTestCase extends TestCase
     protected function tearDown(): void
     {
         \ZenCoParent\Infrastructure\Database\Connection::reset();
-        unset($this->pdo);
-        if (file_exists(self::$dbFile)) {
-            @unlink(self::$dbFile);
+        if (isset($this->pdo)) {
+            $this->pdo->exec('DROP SCHEMA IF EXISTS "' . self::$schema . '" CASCADE');
         }
+        unset($this->pdo);
         $this->removeDirectory(self::$storageDir);
     }
 
@@ -252,7 +263,8 @@ abstract class IntegrationTestCase extends TestCase
 
         foreach ($participantIds as $userId) {
             $this->pdo->prepare(
-                "INSERT OR IGNORE INTO thread_participants (thread_id, user_id, joined_at) VALUES (:tid, :uid, :now)"
+                "INSERT INTO thread_participants (thread_id, user_id, joined_at) VALUES (:tid, :uid, :now)
+                 ON CONFLICT DO NOTHING"
             )->execute(['tid' => $threadId, 'uid' => $userId, 'now' => $now]);
         }
 
@@ -269,7 +281,7 @@ abstract class IntegrationTestCase extends TestCase
         $now = date('Y-m-d H:i:s');
         $this->pdo->prepare(
             "INSERT INTO events (id, tenant_id, child_id, title, type, start_at, end_at, all_day, created_by, created_at, updated_at)
-             VALUES (:id, :tid, :cid, 'Test Event', :type, :now, :now, 0, :by, :now, :now)"
+             VALUES (:id, :tid, :cid, 'Test Event', :type, :now, :now, false, :by, :now, :now)"
         )->execute(['id' => $id, 'tid' => $tenantId, 'cid' => $childId, 'type' => $type, 'by' => $createdBy, 'now' => $now]);
         return $id;
     }
@@ -278,65 +290,12 @@ abstract class IntegrationTestCase extends TestCase
 
     private function runMigrations(): void
     {
-        $migrationDir    = __DIR__ . '/../../../database/migrations';
-        $sqliteOverrides = $migrationDir . '/sqlite';
-        $sqlFiles        = glob($migrationDir . '/0*.sql');
+        $sqlFiles = glob(__DIR__ . '/../../../database/migrations/0*.sql');
         sort($sqlFiles);
 
         foreach ($sqlFiles as $file) {
-            $filename     = basename($file);
-            $overridePath = $sqliteOverrides . '/' . $filename;
-
-            if (file_exists($overridePath)) {
-                // SQLite-specific override: use as-is, no rewriting needed.
-                $sql = file_get_contents($overridePath);
-            } else {
-                $sql = $this->rewriteForSqlite(file_get_contents($file));
-            }
-
-            foreach ($this->splitSqlStatements($sql) as $statement) {
-                $this->pdo->exec($statement);
-            }
+            $this->pdo->exec(file_get_contents($file));
         }
     }
 
-    /**
-     * Split a SQL string into individual statements, ignoring semicolons inside comments.
-     * Simple line-by-line state machine: strips -- comment lines before splitting.
-     */
-    private function splitSqlStatements(string $sql): array
-    {
-        $statements = [];
-        $current    = '';
-
-        foreach (explode("\n", $sql) as $line) {
-            $trimmed = ltrim($line);
-            if (str_starts_with($trimmed, '--')) {
-                // Skip comment lines — don't accumulate them to avoid semicolons inside comments.
-                continue;
-            }
-            $current .= $line . "\n";
-        }
-
-        foreach (explode(';', $current) as $fragment) {
-            $fragment = trim($fragment);
-            if ($fragment !== '') {
-                $statements[] = $fragment;
-            }
-        }
-
-        return $statements;
-    }
-
-    private function rewriteForSqlite(string $sql): string
-    {
-        $sql = preg_replace('/UUID\s+PRIMARY KEY\s+DEFAULT\s+gen_random_uuid\(\)/i', 'TEXT PRIMARY KEY', $sql);
-        $sql = preg_replace('/DEFAULT\s+gen_random_uuid\(\)/i', '', $sql);
-        $sql = preg_replace('/TIMESTAMPTZ/i', 'TEXT', $sql);
-        $sql = preg_replace('/JSONB/i', 'TEXT', $sql);
-        $sql = preg_replace('/NUMERIC\(\d+,\d+\)/i', 'REAL', $sql);
-        $sql = preg_replace('/SERIAL\s+PRIMARY\s+KEY/i', 'INTEGER PRIMARY KEY AUTOINCREMENT', $sql);
-        $sql = preg_replace('/DEFAULT\s+NOW\(\)/i', 'DEFAULT CURRENT_TIMESTAMP', $sql);
-        return $sql;
-    }
 }

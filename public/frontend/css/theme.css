@@ -43,29 +43,6 @@
   --sidebar-bg-end:     #312E81;
 }
 
-/* ── Sidebar brand tagline ────────────────────────────────── */
-.sidebar-brand-tagline::after {
-  content: ' · Pro';
-  font-size: 0.65rem;
-  background: rgba(91, 108, 249, 0.25);
-  color: rgba(255,255,255,0.8);
-  padding: 1px 6px;
-  border-radius: 999px;
-  margin-left: 4px;
-  vertical-align: middle;
-}
-
-/* ── SaaS mode badge in sidebar brand ────────────────────── */
-.sidebar-brand::after {
-  content: 'SaaS';
-  display: block;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
-  margin-top: 2px;
-}
 
 /* ── Login panel gradient ─────────────────────────────────── */
 .login-panel-left {
