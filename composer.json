@@ -2,7 +2,7 @@
     "name": "zencoparent/zencoparent",
     "description": "ZenCoParent - Production-ready PHP 8.2+ SaaS/Community co-parenting web application",
     "type": "project",
-    "license": "proprietary",
+    "license": "GPL-3.0-or-later",
     "require": {
         "php": "^8.2",
         "firebase/php-jwt": "^6.10",

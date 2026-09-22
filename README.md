@@ -250,4 +250,8 @@ docker exec zencoparent-php-1 sh -c 'cd /var/www/html && ./vendor/bin/phpunit'
 
 ## Licence
 
-Propriétaire — voir `composer.json`.
+**GNU General Public License v3.0 ou ultérieure** — voir [LICENSE](LICENSE).
+
+Vous êtes libre d'utiliser, modifier et redistribuer ce logiciel. Toute
+redistribution, modifiée ou non, doit rester sous la même licence et donner
+accès au code source.
