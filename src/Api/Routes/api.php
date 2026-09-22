@@ -9,7 +9,6 @@ use ZenCoParent\Api\Controllers\MedicalAttachmentController;
 use ZenCoParent\Api\Controllers\SettingsController;
 use ZenCoParent\Api\Controllers\AuthController;
 use ZenCoParent\Api\Controllers\NotificationController;
-use ZenCoParent\Api\Middleware\RequireMasterKeyMiddleware;
 use ZenCoParent\Api\Controllers\ChildController;
 use ZenCoParent\Api\Controllers\EventController;
 use ZenCoParent\Api\Controllers\ExpenseController;

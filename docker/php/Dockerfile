@@ -6,7 +6,6 @@ RUN apk add --no-cache \
     libzip-dev \
     icu-dev \
     oniguruma-dev \
-    sqlite-dev \
     curl \
     su-exec \
     $PHPIZE_DEPS
@@ -14,7 +13,6 @@ RUN apk add --no-cache \
 # Install PHP extensions
 RUN docker-php-ext-install \
     pdo_pgsql \
-    pdo_sqlite \
     opcache \
     intl \
     zip \

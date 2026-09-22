@@ -1,9 +1,9 @@
-# SAAS INFRA
+# INFRA
 
 - PHP-FPM
 - Nginx
 - PostgreSQL
-- Redis
-- MinIO
+- Redis (optional)
+- MinIO (optional)
 
 Stateless + scalable

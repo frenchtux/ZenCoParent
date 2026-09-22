@@ -1,190 +1,22 @@
 # ZenCoParent — Guide d'installation
 
-Choisissez votre mode d'installation selon votre contexte :
+ZenCoParent s'installe avec **Docker Compose**, en une seule édition. Toutes les fonctionnalités sont disponibles, sans restriction ni activation.
 
-| | Community | SaaS |
-|---|---|---|
-| Hébergement | Mutualisé / VPS simple | VPS ou cloud dédié |
-| Base de données | SQLite (incluse) | PostgreSQL 16 |
-| Stockage fichiers | Dossier local | MinIO / S3 |
-| Cache / rate-limit | Désactivé (fichier) | Redis 7 |
-| Multi-tenant | Non (famille unique) | Oui |
-| Photos / galerie | Oui (module) | Oui (module) |
-| Paiements (Stripe) | Non | Oui (licence 150 € + abonnements) |
-| Licence requise | Non | Oui (30 j d'essai gratuit) |
-| Difficulté | ⭐ Débutant | ⭐⭐ Intermédiaire |
+| | ZenCoParent |
+|---|---|
+| Hébergement | VPS ou cloud dédié |
+| Base de données | PostgreSQL 16 (**obligatoire**) |
+| Stockage fichiers | MinIO / S3 (optionnel) ou dossier local |
+| Cache / rate-limit | Redis 7 (optionnel) |
+| Multi-tenant | Oui |
+| Difficulté | ⭐⭐ Intermédiaire |
 
 ---
 
-## Mode 1 — Community (ZIP + PHP)
-
-Installation en moins de 5 minutes sur n'importe quel hébergement avec PHP 8.2+.
-
-### Prérequis
-
-- PHP **8.2** ou supérieur
-- Extensions PHP : `pdo`, `pdo_sqlite`, `mbstring`, `json`, `openssl`, `fileinfo`
-- Serveur web : Apache 2.4+ (avec `mod_rewrite`) ou Nginx 1.20+
-- Accès en ligne de commande (SSH ou terminal local)
-- Composer 2.x
-
-Vérifiez votre version de PHP et les extensions :
-
-```bash
-php -v
-php -m | grep -E 'pdo|pdo_sqlite|mbstring|json|openssl|fileinfo'
-```
-
-### Étape 1 — Télécharger et déposer les fichiers
-
-```bash
-# Remplacez x.y.z par le numéro de version
-wget https://github.com/frenchtux/ZenCoParent/releases/download/vx.y.z/zencoparent-community-x.y.z.zip
-unzip zencoparent-community-x.y.z.zip -d zencoparent
-
-# Déposer dans la racine web
-sudo mv zencoparent /var/www/html/zencoparent   # Apache
-# ou
-sudo mv zencoparent /var/www/zencoparent        # Nginx
-```
-
-### Étape 2 — Installer les dépendances PHP
-
-```bash
-cd /var/www/html/zencoparent
-composer install --no-dev --optimize-autoloader
-```
-
-### Étape 3 — Lancer le wizard d'installation
-
-Le script `install.php` configure tout de façon interactive :
-
-```bash
-php install.php
-```
-
-Il vous demande :
-
-1. **Chemin SQLite** — emplacement de la base (ex: `/var/www/html/zencoparent/database/zencoparent.sqlite`)
-2. **Chemin de stockage** — dossier des fichiers (ex: `/var/www/html/zencoparent/storage`)
-3. **URL de l'application** — URL publique (ex: `https://monsite.com`)
-4. **Email admin** — votre adresse email
-5. **Mot de passe admin** — 8 caractères minimum
-6. **Prénom / Nom** de l'administrateur
-7. **Nom de famille** — le « tenant » (une seule famille en mode Community)
-
-À la fin, il :
-- Crée automatiquement le fichier `.env`
-- Applique les 23 migrations SQL sur la base SQLite
-- Crée le tenant et le compte administrateur
-- Affiche un bloc de configuration Nginx prêt à l'emploi
-
-> **Premier login** : un changement obligatoire d'email et de mot de passe est imposé (modal bloquant) pour le compte admin initial.
-
-> **Supprimez `install.php` après l'installation** — il n'est plus nécessaire et expose les chemins système.
-
-```bash
-rm install.php
-```
-
-### Étape 4 — Permissions des dossiers
-
-```bash
-# Debian/Ubuntu
-sudo chown -R www-data:www-data database/ storage/ logs/
-sudo chmod -R 755 database/ storage/ logs/
-
-# CentOS/RHEL/AlmaLinux
-sudo chown -R apache:apache database/ storage/ logs/
-sudo chmod -R 755 database/ storage/ logs/
-```
-
-### Étape 5 — Configurer le serveur web
-
-**Apache** — créez `/etc/apache2/sites-available/zencoparent.conf` :
-
-```apacheconf
-<VirtualHost *:80>
-    ServerName monsite.com
-    DocumentRoot /var/www/html/zencoparent/public
-
-    <Directory /var/www/html/zencoparent/public>
-        Options -Indexes
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    # Bloquer l'accès aux répertoires sensibles
-    <Directory /var/www/html/zencoparent/database>
-        Require all denied
-    </Directory>
-    <Directory /var/www/html/zencoparent/storage>
-        Require all granted
-    </Directory>
-</VirtualHost>
-```
-
-```bash
-sudo a2enmod rewrite
-sudo a2ensite zencoparent
-sudo systemctl reload apache2
-```
-
-**Nginx** — copiez le bloc affiché par `install.php` dans `/etc/nginx/sites-available/zencoparent.conf`, puis :
-
-```bash
-sudo ln -s /etc/nginx/sites-available/zencoparent.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Le bloc Nginx généré ressemble à ceci (adaptez les chemins) :
-
-```nginx
-server {
-    listen 80;
-    server_name monsite.com;
-    root /var/www/html/zencoparent/public;
-    index index.php;
-
-    # Fichiers statiques (stockage local)
-    location /storage/ {
-        alias /var/www/html/zencoparent/storage/;
-        expires 7d;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.php$is_args$args;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    # Bloquer les fichiers sensibles
-    location ~* \.(env|sqlite|log|sh|sql)$ { deny all; return 404; }
-    location ~ /\.(env|git) { deny all; }
-}
-```
-
-### Vérification
-
-Ouvrez `http://monsite.com` dans votre navigateur — vous devez voir la page de connexion ZenCoParent.
-
-Connectez-vous avec le compte administrateur créé à l'étape 3.
-
-> **HTTPS (recommandé) :** `sudo certbot --nginx -d monsite.com`
-
----
-
-## Mode 2 — SaaS (Docker Compose)
-
-Installation complète avec PostgreSQL multi-tenant, Redis, MinIO et gestion des licences.
-
-### Prérequis
+## Prérequis
 
 - Docker **24+** et Docker Compose **v2+**
+- PHP **8.2+** et Composer **2.x** sur l'hôte (pour installer `vendor/`)
 - 2 Go de RAM minimum (4 Go recommandés en production)
 - Un nom de domaine avec DNS configuré (pour HTTPS)
 - Git
@@ -192,35 +24,50 @@ Installation complète avec PostgreSQL multi-tenant, Redis, MinIO et gestion des
 ```bash
 docker --version
 docker compose version
+php -v
 ```
 
-### Étape 1 — Cloner le dépôt
+PostgreSQL, Redis et MinIO sont fournis par le `docker-compose.yml` — aucune installation manuelle n'est nécessaire.
+
+---
+
+## Étape 1 — Cloner le dépôt
 
 ```bash
 git clone https://github.com/frenchtux/ZenCoParent.git
 cd ZenCoParent
 ```
 
-### Étape 2 — Configurer les variables d'environnement
+## Étape 2 — Installer les dépendances PHP
 
 ```bash
-cp .env.example .env
+composer install --no-dev --optimize-autoloader
 ```
 
-Éditez `.env` et renseignez **toutes** les valeurs marquées à changer :
+> Cette commande se lance **sur l'hôte** : le `docker-compose.yml` monte le dépôt entier (dont `vendor/`) dans les conteneurs PHP. Sans `vendor/` à jour, les conteneurs `migrate` et `seed` échouent au démarrage.
+
+## Étape 3 — Configurer les variables d'environnement
+
+```bash
+cp .env.example .env.saas
+```
+
+> `.env.saas` est le fichier lu par défaut par le `docker-compose.yml`. Il est dans `.gitignore` — ne le commettez jamais.
+
+Éditez `.env.saas` et renseignez **toutes** les valeurs marquées à changer :
 
 ```dotenv
-# ─── Mode application ────────────────────────────────────────────────────────
+# ─── Application ─────────────────────────────────────────────────────────────
 APP_NAME=ZenCoParent
 APP_ENV=production
-APP_MODE=saas
 APP_URL=https://votre-domaine.com
 APP_DEBUG=false
+APP_PORT=80                 # 8061 en développement local
 
 # Générez avec : php -r "echo bin2hex(random_bytes(32));"
 APP_SECRET=changez-moi-avec-une-chaine-aleatoire-de-64-caracteres
 
-# ─── PostgreSQL ──────────────────────────────────────────────────────────────
+# ─── PostgreSQL (obligatoire) ────────────────────────────────────────────────
 DB_CONNECTION=pgsql
 DB_HOST=postgres
 DB_PORT=5432
@@ -228,18 +75,26 @@ DB_DATABASE=zencoparent
 DB_USERNAME=zencoparent
 DB_PASSWORD=changez-ce-mot-de-passe-fort
 
-# ─── Redis ───────────────────────────────────────────────────────────────────
+# ─── Redis (optionnel) ───────────────────────────────────────────────────────
+# Laisser REDIS_HOST vide désactive le rate limiting ; l'application
+# fonctionne normalement.
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=null    # Mettez un mot de passe en production !
 REDIS_DB=0
 
-# ─── MinIO (stockage objet S3-compatible) ────────────────────────────────────
+# ─── MinIO / S3 (optionnel) ──────────────────────────────────────────────────
+# Laisser MINIO_ENDPOINT vide stocke les fichiers sur le disque local,
+# aux emplacements STORAGE_PATH / STORAGE_URL ci-dessous.
 MINIO_ENDPOINT=http://minio:9000
 MINIO_ACCESS_KEY=changez-access-key
 MINIO_SECRET_KEY=changez-secret-key
 MINIO_BUCKET=zencoparent
 MINIO_REGION=us-east-1
+
+# ─── Stockage local (utilisé quand MINIO_ENDPOINT est vide) ──────────────────
+STORAGE_PATH=/var/www/html/storage
+STORAGE_URL=http://localhost/storage
 
 # ─── JWT ─────────────────────────────────────────────────────────────────────
 JWT_SECRET=changez-moi-autre-secret-long-et-aleatoire
@@ -249,13 +104,7 @@ JWT_REFRESH_EXPIRY=2592000
 # ─── CSRF ────────────────────────────────────────────────────────────────────
 CSRF_SECRET=changez-moi-csrf-secret
 
-# ─── Licence SaaS ────────────────────────────────────────────────────────────
-# Clé maître connue UNIQUEMENT de l'opérateur/éditeur.
-# Permet de dériver les clés d'activation pour chaque installation.
-# Voir section "Clé d'activation" ci-dessous.
-LICENSE_MASTER_KEY=changez-cette-cle-avant-toute-distribution
-
-# ─── Rate limiting ───────────────────────────────────────────────────────────
+# ─── Rate limiting (ignoré sans Redis) ───────────────────────────────────────
 RATE_LIMIT_REQUESTS=60
 RATE_LIMIT_WINDOW=60
 
@@ -272,10 +121,12 @@ GOOGLE_REDIRECT_URI=https://votre-domaine.com/auth/oauth/google/callback
 > openssl rand -hex 32
 > ```
 
-### Étape 3 — Lancer les services
+> **Alternative interactive :** `python scripts/setup.py` est un wizard qui génère un fichier `.env.saas.generated` prérempli, à renommer en `.env.saas` après relecture.
+
+## Étape 4 — Lancer les services
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.saas up --build -d
 ```
 
 Vérifiez que tous les conteneurs sont démarrés :
@@ -284,7 +135,7 @@ Vérifiez que tous les conteneurs sont démarrés :
 docker compose ps
 ```
 
-Vous devez voir les services `nginx`, `php`, `postgres`, `redis` et `minio` avec le statut `running`.
+Vous devez voir les services `nginx`, `php`, `postgres`, `redis` et `minio` avec le statut `running`, et les trois conteneurs d'init `migrate`, `seed` et `minio-init` en `exited (0)` — **c'est le comportement attendu** : ils s'exécutent une fois puis s'arrêtent.
 
 Attendez que PostgreSQL soit prêt (le healthcheck le gère automatiquement, ~10 s) :
 
@@ -292,30 +143,34 @@ Attendez que PostgreSQL soit prêt (le healthcheck le gère automatiquement, ~10
 docker compose logs postgres --tail=10
 ```
 
-### Étape 4 — Migrations et seed (automatiques)
+## Étape 5 — Migrations, seed et bucket (automatiques)
 
-Le `docker-compose.yml` exécute automatiquement, à chaque `up`, deux conteneurs d'init :
+Le `docker-compose.yml` exécute automatiquement, à chaque `up`, trois conteneurs d'init :
 
-1. **`migrate`** — applique les 23 migrations PostgreSQL (table `app_license` incluse)
-2. **`seed`** — crée le tenant `zencoparent` + l'admin par défaut
+1. **`migrate`** — applique les migrations PostgreSQL en attente (`database/migrations/migrate.php`)
+2. **`seed`** — crée le tenant `zencoparent` + l'admin par défaut (`seed_admin_saas.php`), idempotent
+3. **`minio-init`** — crée le bucket `MINIO_BUCKET` s'il n'existe pas
 
-Pour rejouer manuellement les migrations si besoin :
+Pour consulter leur sortie ou rejouer manuellement les migrations :
 
 ```bash
+docker compose logs migrate seed minio-init
 docker compose exec php php database/migrations/migrate.php
 ```
 
-### Étape 5 — Premier compte administrateur
+Le runner est **forward-only** : les migrations déjà appliquées (tracées dans la table `migrations`) sont ignorées, il n'y a pas de rollback.
+
+## Étape 6 — Premier compte administrateur
 
 L'admin par défaut est créé automatiquement par le conteneur `seed` :
 
 | Champ | Valeur |
 |---|---|
-| Tenant | `zencoparent` |
+| Tenant (espace famille) | `zencoparent` |
 | Email | `admin@zencoparent.local` |
 | Mot de passe | `Admin1234!` |
 
-> **Au premier login, un changement obligatoire d'email et de mot de passe est imposé.** Définissez immédiatement des identifiants forts.
+> **Au premier login, un changement obligatoire d'email et de mot de passe est imposé** (modal bloquant). Définissez immédiatement des identifiants forts.
 
 **Inscription publique** — `/frontend/register.html` (ou l'API ci-dessous) crée un **nouveau tenant familial** dont l'utilisateur est **parent** (jamais admin). Champs requis : `family_name`, `email`, `password`, `first_name`, `last_name`.
 
@@ -333,25 +188,27 @@ curl -s -X POST https://votre-domaine.com/auth/register \
 
 Les comptes **admin** supplémentaires se créent depuis l'interface admin (`/frontend/utilisateurs.html`).
 
-### Étape 6 — Configurer MinIO
+## Étape 7 — Stockage des fichiers
 
-Accédez à la console MinIO sur `http://votre-serveur:9001` :
+Deux options, pilotées par la seule variable `MINIO_ENDPOINT`.
+
+**Option A — MinIO / S3 (`MINIO_ENDPOINT` renseignée)**
+
+Le conteneur `minio-init` crée le bucket automatiquement. Pour vérifier ou ajuster la politique d'accès, ouvrez la console MinIO sur `http://votre-serveur:9001` :
 
 1. Connectez-vous avec `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`
-2. Créez un bucket nommé selon la valeur de `MINIO_BUCKET` (ex: `zencoparent`)
+2. Vérifiez la présence du bucket nommé selon `MINIO_BUCKET` (ex: `zencoparent`)
 3. Politique d'accès du bucket : **Private**
 
-Ou via la CLI depuis le conteneur :
+Pour pointer vers AWS S3 plutôt que le MinIO local, renseignez `MINIO_ENDPOINT=https://s3.amazonaws.com`, la bonne `MINIO_REGION` et vos clés IAM.
 
-```bash
-docker compose exec minio sh -c "
-  mc alias set local http://localhost:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD &&
-  mc mb local/zencoparent &&
-  mc policy set private local/zencoparent
-"
-```
+**Option B — Disque local (`MINIO_ENDPOINT` vide)**
 
-### Étape 7 — HTTPS en production
+Les fichiers sont écrits dans `STORAGE_PATH` (par défaut `/var/www/html/storage` dans le conteneur, adossé au volume Docker `zencoparent_storage`) et exposés sous `STORAGE_URL`. L'application n'appelle plus MinIO du tout.
+
+> Le service `php` déclare `depends_on: minio-init`, donc les conteneurs `minio` et `minio-init` continuent de démarrer même si l'application ne les utilise pas. Pour les supprimer complètement, il faut éditer le `docker-compose.yml` et retirer cette dépendance.
+
+## Étape 8 — HTTPS en production
 
 **Certbot (recommandé) :**
 
@@ -362,228 +219,51 @@ sudo certbot --nginx -d votre-domaine.com
 
 **Traefik** (si plusieurs services sur le même hôte) : ajoutez les labels `traefik.enable=true` dans un `docker-compose.override.yml`.
 
-### Vérification
+---
+
+## Vérification
 
 ```bash
-# Santé de l'API
-curl -s https://votre-domaine.com/health
+# Tous les services longue durée sont "running"
+docker compose ps
 
-# Statut de la licence (retourne la clé d'installation)
-curl -s https://votre-domaine.com/license | python3 -m json.tool
+# La page de connexion répond (200)
+curl -I http://localhost:8061/
+
+# Le seed a bien créé le tenant et l'admin
+docker compose exec postgres psql -U zencoparent -d zencoparent \
+  -c "SELECT slug FROM tenants; SELECT email, role FROM users;"
 ```
+
+Ouvrez ensuite `http://localhost:8061` (ou votre `APP_URL`) dans un navigateur — vous devez voir la page de connexion ZenCoParent.
 
 ---
 
-## Clé d'activation SaaS
+## Tests
 
-Le mode SaaS inclut une gestion de licence. Voici comment elle fonctionne de bout en bout.
-
-### Fonctionnement
-
-```
-INSTALLATION                    OPÉRATEUR                      CLIENT
-─────────────────────────────────────────────────────────────────────
-1. Premier démarrage        →   Clé d'installation auto-générée
-   (stockée en base)            ZNCO-AB12-CD34-EF56-78AB-CDEF
-
-2. Le client appelle            ← GET /license
-   et récupère sa clé
-
-3. Le client envoie sa      →   php generate-activation-key.php ZNCO-AB12-...
-   clé d'installation           ↓ produit
-                                ACT-F3A2-91BC-4D7E-0821-A5CF
-
-4. L'opérateur renvoie la   →   POST /license/activate
-   clé d'activation             {"activation_key": "ACT-F3A2-..."}
-
-                                ← Licence activée ✓
-```
-
-### Période d'essai
-
-Après l'installation, l'application est utilisable **sans clé d'activation pendant 30 jours**. Passé ce délai, toute requête API retourne :
-
-```json
-{
-  "success": false,
-  "error": "license_expired",
-  "message": "La période d'essai de 30 jours a expiré.",
-  "data": {
-    "installation_key": "ZNCO-AB12-CD34-EF56-78AB-CDEF",
-    "trial_days_remaining": 0,
-    "is_active": false
-  }
-}
-```
-
-### Étape 1 — Récupérer la clé d'installation (côté client)
-
-Le client appelle l'endpoint public (sans authentification) :
+La suite PHPUnit tourne sur PostgreSQL, avec un schéma isolé par exécution : **Docker doit être démarré**.
 
 ```bash
-curl -s https://votre-domaine.com/license
+docker exec zencoparent-php-1 sh -c 'cd /var/www/html && ./vendor/bin/phpunit'
 ```
-
-Réponse :
-
-```json
-{
-  "success": true,
-  "data": {
-    "installation_key": "ZNCO-AB12-CD34-EF56-78AB-CDEF",
-    "is_trial_active": true,
-    "trial_days_remaining": 27,
-    "is_active": false,
-    "activated_at": null,
-    "installed_at": "2026-05-28T14:32:00+00:00",
-    "is_licensed": true
-  }
-}
-```
-
-Le client vous communique son `installation_key` (ex: par email ou portail client).
-
-### Étape 2 — Générer la clé d'activation (côté opérateur)
-
-La clé d'activation est dérivée de la clé d'installation par HMAC-SHA256, en utilisant votre `LICENSE_MASTER_KEY`. **Cette opération se fait côté opérateur uniquement — ne partagez jamais `LICENSE_MASTER_KEY`.**
-
-**Option A — Script dédié** (recommandé, à placer dans `bin/generate-activation-key.php`) :
-
-```php
-<?php
-// bin/generate-activation-key.php
-// Usage : php bin/generate-activation-key.php ZNCO-AB12-CD34-EF56-78AB-CDEF
-
-require __DIR__ . '/../vendor/autoload.php';
-(Dotenv\Dotenv::createImmutable(dirname(__DIR__)))->load();
-
-$installationKey = trim($argv[1] ?? '');
-if (!$installationKey) {
-    fwrite(STDERR, "Usage: php bin/generate-activation-key.php <INSTALLATION_KEY>\n");
-    exit(1);
-}
-
-$masterKey = $_ENV['LICENSE_MASTER_KEY'] ?? '';
-if (!$masterKey || str_contains($masterKey, 'changez')) {
-    fwrite(STDERR, "Erreur : LICENSE_MASTER_KEY non configurée dans .env\n");
-    exit(1);
-}
-
-$hmac  = strtoupper(hash_hmac('sha256', $installationKey, $masterKey));
-$chars = substr($hmac, 0, 20);
-$key   = 'ACT-' . implode('-', str_split($chars, 4));
-
-echo "Installation key : {$installationKey}\n";
-echo "Activation key   : {$key}\n";
-```
-
-```bash
-# Utilisation
-php bin/generate-activation-key.php ZNCO-AB12-CD34-EF56-78AB-CDEF
-
-# Sortie
-Installation key : ZNCO-AB12-CD34-EF56-78AB-CDEF
-Activation key   : ACT-F3A2-91BC-4D7E-0821-A5CF
-```
-
-**Option B — One-liner PHP** (si vous préférez sans script) :
-
-```bash
-php -r "
-\$install = 'ZNCO-AB12-CD34-EF56-78AB-CDEF';   // ← clé du client
-\$master  = 'votre-license-master-key';          // ← votre LICENSE_MASTER_KEY
-\$hmac    = strtoupper(hash_hmac('sha256', \$install, \$master));
-\$chars   = substr(\$hmac, 0, 20);
-echo 'ACT-' . implode('-', str_split(\$chars, 4)) . PHP_EOL;
-"
-```
-
-> **Important :** La même `LICENSE_MASTER_KEY` doit être utilisée pour tous vos clients. Si vous la changez, les clés d'activation déjà émises deviennent invalides. Stockez-la dans un gestionnaire de secrets (ex: Vault, AWS Secrets Manager).
-
-### Étape 3 — Activer la licence (côté client)
-
-Le client soumet la clé d'activation via l'API :
-
-```bash
-curl -s -X POST https://votre-domaine.com/license/activate \
-  -H "Content-Type: application/json" \
-  -d '{"activation_key": "ACT-F3A2-91BC-4D7E-0821-A5CF"}' \
-  | python3 -m json.tool
-```
-
-Réponse en cas de succès :
-
-```json
-{
-  "success": true,
-  "data": {
-    "installation_key": "ZNCO-AB12-CD34-EF56-78AB-CDEF",
-    "is_trial_active": true,
-    "trial_days_remaining": 27,
-    "is_active": true,
-    "activated_at": "2026-05-28T16:00:00+00:00",
-    "installed_at": "2026-05-28T14:32:00+00:00",
-    "is_licensed": true
-  }
-}
-```
-
-Réponse en cas de clé invalide :
-
-```json
-{
-  "success": false,
-  "error": "Clé d'activation invalide.",
-  "code": 422
-}
-```
-
-### Résumé des endpoints licence
-
-| Méthode | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/license` | Non | Statut de la licence + clé d'installation |
-| `POST` | `/license/activate` | Non | Soumettre une clé d'activation |
 
 ---
 
 ## Mise à jour
 
-### Community
-
-```bash
-# 1. Sauvegarder la base et la config
-cp database/zencoparent.sqlite database/zencoparent.sqlite.bak
-cp .env .env.bak
-
-# 2. Télécharger et décompresser la nouvelle version
-# (les fichiers applicatifs sont remplacés, storage/ et database/ sont préservés)
-wget https://github.com/frenchtux/ZenCoParent/releases/download/vX.Y.Z/zencoparent-community-X.Y.Z.zip
-unzip -o zencoparent-community-X.Y.Z.zip -x "storage/*" "database/*.sqlite" ".env"
-
-# 3. Mettre à jour les dépendances
-composer install --no-dev --optimize-autoloader
-
-# 4. Appliquer les nouvelles migrations
-php database/migrations/migrate_sqlite.php
-
-# 5. Réinitialiser les permissions
-sudo chown -R www-data:www-data database/ storage/ logs/
-```
-
-### SaaS
-
 ```bash
 # 1. Sauvegarder PostgreSQL
 docker compose exec postgres pg_dump -U zencoparent zencoparent > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# 2. Mettre à jour le code et les images
+# 2. Mettre à jour le code et les dépendances
 git pull origin main
-docker compose pull
-docker compose up -d --remove-orphans
+composer install --no-dev --optimize-autoloader
 
-# 3. Appliquer les nouvelles migrations
-docker compose exec php php database/migrations/migrate.php
+# 3. Reconstruire et relancer (les migrations sont rejouées par le conteneur `migrate`)
+docker compose --env-file .env.saas up --build -d --remove-orphans
+
+# 4. Vérifier que les migrations sont passées
+docker compose logs migrate --tail=30
 ```
 
 ---
@@ -593,17 +273,23 @@ docker compose exec php php database/migrations/migrate.php
 ### Erreur 500 au premier accès
 
 ```bash
-# Community — lire les logs PHP-FPM
-sudo tail -f /var/log/php8.2-fpm.log
-
-# Vérifier les permissions de storage/
-ls -la storage/ database/
-
-# SaaS — logs du conteneur PHP
+# Logs du conteneur PHP
 docker compose logs php --tail=50
+
+# Logs applicatifs (Monolog)
+docker compose exec php tail -n 50 /var/www/html/storage/logs/app.log
 ```
 
-### Erreur de connexion PostgreSQL (SaaS)
+### Les conteneurs `migrate` / `seed` échouent au démarrage
+
+La cause la plus fréquente est un `vendor/` absent ou obsolète sur l'hôte :
+
+```bash
+composer install --no-dev --optimize-autoloader
+docker compose --env-file .env.saas up -d
+```
+
+### Erreur de connexion PostgreSQL
 
 Vérifiez que les variables correspondent bien à celles du `docker-compose.yml` :
 
@@ -618,9 +304,11 @@ docker compose exec php php -r "
 "
 ```
 
-> Les variables dans `docker-compose.yml` sont `${DB_DATABASE}` et `${DB_USERNAME}` — vérifiez qu'elles correspondent exactement à votre `.env`.
+> Les variables dans `docker-compose.yml` sont `${DB_DATABASE}` et `${DB_USERNAME}` — vérifiez qu'elles correspondent exactement à votre `.env.saas`.
 
 ### Redis non disponible (rate limiting)
+
+Redis est **optionnel** : si `REDIS_HOST` est vide, l'application démarre sans rate limiting. Si vous l'avez configuré mais qu'il ne répond pas :
 
 ```bash
 docker compose exec php php -r "
@@ -633,30 +321,31 @@ docker compose exec php php -r "
 "
 ```
 
-### Licence expirée — accès impossible (SaaS)
+En dernier recours, videz `REDIS_HOST` dans `.env.saas` et relancez : l'application repassera sans rate limiting.
 
-Si l'essai de 30 jours est expiré et que vous n'avez pas encore de clé d'activation :
+### Upload de fichiers en échec
+
+MinIO est **optionnel**. Vérifiez d'abord que le bucket existe :
 
 ```bash
-# Vérifier le statut actuel
-curl -s http://localhost/license | python3 -m json.tool
+docker compose logs minio-init
 ```
 
-Récupérez la valeur `installation_key` et suivez la procédure de la section [**Clé d'activation SaaS**](#clé-dactivation-saas).
+Si vous n'utilisez pas MinIO, assurez-vous que `MINIO_ENDPOINT` est bien **vide** et que `STORAGE_PATH` est accessible en écriture :
+
+```bash
+docker compose exec php ls -la /var/www/html/storage
+```
 
 ### JWT invalide / sessions expirées
 
-Si toutes les sessions utilisateur sont invalidées après un redémarrage, vérifiez que `JWT_SECRET` n'a pas changé (il est rechargé depuis `.env` à chaque boot). Tout changement de `JWT_SECRET` invalide tous les tokens actifs — c'est le comportement attendu.
+Si toutes les sessions utilisateur sont invalidées après un redémarrage, vérifiez que `JWT_SECRET` n'a pas changé (il est rechargé depuis le fichier d'environnement à chaque boot). Tout changement de `JWT_SECRET` invalide tous les tokens actifs — c'est le comportement attendu.
 
-### Permissions refusées sur `storage/` ou `database/`
+### Permissions refusées sur `storage/`
+
+L'entrypoint du conteneur PHP corrige les droits au démarrage. Pour les rétablir manuellement :
 
 ```bash
-# Community
-sudo chown -R www-data:www-data storage/ database/ logs/
-sudo chmod 755 storage/ database/ logs/
-sudo chmod 644 database/*.sqlite
-
-# SaaS
 docker compose exec php chown -R www-data:www-data /var/www/html/storage
 ```
 
@@ -664,53 +353,49 @@ docker compose exec php chown -R www-data:www-data /var/www/html/storage
 
 ## Variables d'environnement — référence complète
 
-| Variable | Mode | Requis | Valeur par défaut | Description |
-|---|---|---|---|---|
-| `APP_NAME` | Les deux | Non | `ZenCoParent` | Nom affiché |
-| `APP_MODE` | Les deux | Oui | — | `community` ou `saas` |
-| `APP_ENV` | Les deux | Oui | — | `production` ou `development` |
-| `APP_URL` | Les deux | Oui | — | URL publique de l'application |
-| `APP_SECRET` | Les deux | Oui | — | Secret applicatif (min. 32 chars) |
-| `APP_DEBUG` | Les deux | Non | `false` | Activer les traces d'erreurs |
-| `JWT_SECRET` | Les deux | Oui | — | Clé de signature JWT |
-| `JWT_EXPIRY` | Les deux | Non | `3600` | Durée du token en secondes |
-| `JWT_REFRESH_EXPIRY` | Les deux | Non | `2592000` | Durée du refresh token (30 j) |
-| `CSRF_SECRET` | Les deux | Oui | — | Clé CSRF double-submit |
-| `DB_CONNECTION` | Les deux | Oui | — | `pgsql` (SaaS) ou `sqlite` (Community) |
-| `DB_FILE` | Community | Non | `database/zencoparent.sqlite` | Chemin SQLite |
-| `DB_HOST` | SaaS | Oui | `postgres` | Hôte PostgreSQL |
-| `DB_PORT` | SaaS | Non | `5432` | Port PostgreSQL |
-| `DB_DATABASE` | SaaS | Oui | — | Nom de la base PostgreSQL |
-| `DB_USERNAME` | SaaS | Oui | — | Utilisateur PostgreSQL |
-| `DB_PASSWORD` | SaaS | Oui | — | Mot de passe PostgreSQL |
-| `REDIS_HOST` | SaaS | Oui | `redis` | Hôte Redis |
-| `REDIS_PORT` | SaaS | Non | `6379` | Port Redis |
-| `REDIS_PASSWORD` | SaaS | Non | `null` | Mot de passe Redis |
-| `REDIS_DB` | SaaS | Non | `0` | Index de la base Redis |
-| `MINIO_ENDPOINT` | SaaS | Oui | — | URL MinIO (ex: `http://minio:9000`) |
-| `MINIO_ACCESS_KEY` | SaaS | Oui | — | Clé d'accès MinIO |
-| `MINIO_SECRET_KEY` | SaaS | Oui | — | Clé secrète MinIO |
-| `MINIO_BUCKET` | SaaS | Oui | `zencoparent` | Nom du bucket |
-| `MINIO_REGION` | SaaS | Non | `us-east-1` | Région MinIO/S3 |
-| `STORAGE_PATH` | Community | Non | `storage/` | Chemin stockage local |
-| `STORAGE_URL` | Community | Non | `/storage` | URL publique du stockage |
-| `LICENSE_MASTER_KEY` | SaaS | Oui | — | Clé maître pour dériver les clés d'activation |
-| `RATE_LIMIT_REQUESTS` | SaaS | Non | `60` | Requêtes max par fenêtre |
-| `RATE_LIMIT_WINDOW` | SaaS | Non | `60` | Taille de la fenêtre en secondes |
-| `GOOGLE_CLIENT_ID` | Les deux | Non | — | OAuth Google (optionnel) |
-| `GOOGLE_CLIENT_SECRET` | Les deux | Non | — | OAuth Google (optionnel) |
-| `GOOGLE_REDIRECT_URI` | Les deux | Non | — | Callback OAuth Google |
-| `MAIL_HOST` | Les deux | Non | — | Serveur SMTP global (surchargeable par tenant via l'admin) |
-| `MAIL_PORT` | Les deux | Non | `587` | Port SMTP |
-| `MAIL_ENCRYPTION` | Les deux | Non | `tls` | `tls` ou `ssl` |
-| `MAIL_USERNAME` | Les deux | Non | — | Identifiant SMTP |
-| `MAIL_PASSWORD` | Les deux | Non | — | Mot de passe SMTP |
-| `MAIL_FROM_ADDRESS` | Les deux | Non | — | Adresse expéditeur |
-| `MAIL_FROM_NAME` | Les deux | Non | `ZenCoParent` | Nom expéditeur |
-| `STRIPE_SECRET_KEY` | SaaS | Non | — | Clé secrète Stripe (`sk_...`) |
-| `STRIPE_WEBHOOK_SECRET` | SaaS | Non | — | Secret de vérification du webhook |
-| `STRIPE_INSTALLATION_KEY_PRICE_ID` | SaaS | Non | — | Price ID pour l'achat d'une clé d'installation |
-| `APP_PORT` | Les deux | Non | `80` | Port hôte exposé par nginx (ex: `8061` en dev) |
+| Variable | Requis | Valeur par défaut | Description |
+|---|---|---|---|
+| `APP_NAME` | Non | `ZenCoParent` | Nom affiché |
+| `APP_ENV` | Oui | — | `production` ou `development` |
+| `APP_URL` | Oui | — | URL publique de l'application |
+| `APP_SECRET` | Oui | — | Secret applicatif (min. 32 chars) ; chiffre aussi les configs SMTP en base |
+| `APP_DEBUG` | Non | `false` | Activer les traces d'erreurs |
+| `APP_PORT` | Non | `80` | Port hôte exposé par nginx (ex: `8061` en dev) |
+| `DB_CONNECTION` | Oui | `pgsql` | Toujours `pgsql` — PostgreSQL est le seul moteur supporté |
+| `DB_HOST` | Oui | `postgres` | Hôte PostgreSQL |
+| `DB_PORT` | Non | `5432` | Port PostgreSQL |
+| `DB_DATABASE` | Oui | `zencoparent` | Nom de la base PostgreSQL |
+| `DB_USERNAME` | Oui | — | Utilisateur PostgreSQL |
+| `DB_PASSWORD` | Oui | — | Mot de passe PostgreSQL |
+| `DB_SCHEMA` | Non | — | `search_path` PostgreSQL ; utilisé par la suite de tests pour isoler chaque exécution |
+| `REDIS_HOST` | Non | `redis` | **Vide = pas de rate limiting** |
+| `REDIS_PORT` | Non | `6379` | Port Redis |
+| `REDIS_PASSWORD` | Non | `null` | La valeur littérale `null` désactive l'authentification |
+| `REDIS_DB` | Non | `0` | Index de la base Redis |
+| `MINIO_ENDPOINT` | Non | — | **Vide = stockage sur disque local** (ex: `http://minio:9000`) |
+| `MINIO_PUBLIC_URL` | Non | = `MINIO_ENDPOINT` | URL publique servant les objets |
+| `MINIO_ACCESS_KEY` | Si MinIO | — | Clé d'accès MinIO/S3 |
+| `MINIO_SECRET_KEY` | Si MinIO | — | Clé secrète MinIO/S3 |
+| `MINIO_BUCKET` | Si MinIO | `zencoparent` | Nom du bucket |
+| `MINIO_REGION` | Non | `us-east-1` | Région MinIO/S3 |
+| `STORAGE_PATH` | Si pas de MinIO | `storage/` du projet | Chemin du stockage local |
+| `STORAGE_URL` | Si pas de MinIO | `/storage` | URL publique du stockage local |
+| `JWT_SECRET` | Oui | — | Clé de signature JWT |
+| `JWT_EXPIRY` | Non | `3600` | Durée du token en secondes |
+| `JWT_REFRESH_EXPIRY` | Non | `2592000` | Durée du refresh token (30 j) |
+| `CSRF_SECRET` | Oui | — | Clé CSRF double-submit |
+| `RATE_LIMIT_REQUESTS` | Non | `60` | Requêtes max par fenêtre (ignoré sans Redis) |
+| `RATE_LIMIT_WINDOW` | Non | `60` | Taille de la fenêtre en secondes (ignoré sans Redis) |
+| `GOOGLE_CLIENT_ID` | Non | — | OAuth Google (optionnel) |
+| `GOOGLE_CLIENT_SECRET` | Non | — | OAuth Google (optionnel) |
+| `GOOGLE_REDIRECT_URI` | Non | — | Callback OAuth Google ; si vide, dérivé de `APP_URL` |
+| `MAIL_HOST` | Non | — | Serveur SMTP global — vide désactive l'envoi d'e-mails. Surchargeable par tenant via l'admin |
+| `MAIL_PORT` | Non | `587` | Port SMTP |
+| `MAIL_ENCRYPTION` | Non | `tls` | `tls` ou `ssl` |
+| `MAIL_USERNAME` | Non | — | Identifiant SMTP |
+| `MAIL_PASSWORD` | Non | — | Mot de passe SMTP |
+| `MAIL_FROM_ADDRESS` | Non | — | Adresse expéditeur |
+| `MAIL_FROM_NAME` | Non | `ZenCoParent` | Nom expéditeur |
 
 > **Configuration SMTP par tenant** : chaque administrateur peut définir son propre serveur SMTP depuis `/frontend/admin-parametres.html`. La config stockée en base (mot de passe chiffré AES-256) prime sur les variables `MAIL_*`. Un bouton « envoyer un test » permet de valider la configuration.
 

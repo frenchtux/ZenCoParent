@@ -13,5 +13,6 @@ Clean Architecture (simplified DDD)
 - tenant = family
 - tenant_id everywhere
 
-## Feature Flags
-APP_MODE=community|saas
+## Optional Infrastructure
+- Redis (REDIS_HOST empty -> no rate limiting)
+- MinIO (MINIO_ENDPOINT empty -> local disk storage)
