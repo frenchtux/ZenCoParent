@@ -1,0 +1,46 @@
+FROM php:8.2-fpm-alpine
+
+# System deps
+RUN apk add --no-cache \
+    libpq-dev \
+    libzip-dev \
+    icu-dev \
+    oniguruma-dev \
+    curl \
+    git \
+    su-exec \
+    $PHPIZE_DEPS
+
+# PHP extensions
+RUN docker-php-ext-install \
+    pdo_pgsql \
+    opcache \
+    intl \
+    zip \
+    mbstring \
+    pcntl
+
+RUN pecl install redis \
+    && docker-php-ext-enable redis
+
+RUN apk del $PHPIZE_DEPS \
+    && rm -rf /tmp/pear /var/cache/apk/*
+
+# Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# nginx config embarquée — copiée dans l'image pour ne pas dépendre d'un
+# bind-mount local ; nginx peut la surcharger via volume si nécessaire.
+COPY docker/nginx/default.conf /etc/nginx-default.conf
+
+WORKDIR /var/www/html
+
+# Script de clone/pull
+COPY docker/php/git-clone.sh /usr/local/bin/git-clone.sh
+RUN chmod +x /usr/local/bin/git-clone.sh
+
+COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm"]
