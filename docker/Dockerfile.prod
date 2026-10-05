@@ -1,0 +1,49 @@
+# Production image: code and dependencies baked in, no tests, no dev tooling.
+# Two targets share this file: `php` (php-fpm, migrations, seed) and `nginx`.
+
+# ── Composer dependencies ────────────────────────────────────────────────────
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install \
+        --no-dev \
+        --no-scripts \
+        --no-interaction \
+        --no-progress \
+        --prefer-dist \
+        --ignore-platform-reqs
+COPY src/ src/
+RUN composer dump-autoload --no-dev --optimize
+
+# ── php-fpm ──────────────────────────────────────────────────────────────────
+FROM php:8.2-fpm-alpine AS php
+
+RUN apk add --no-cache libpq icu-libs \
+    && apk add --no-cache --virtual .build-deps libpq-dev icu-dev $PHPIZE_DEPS \
+    && docker-php-ext-install pdo_pgsql intl opcache \
+    && apk del .build-deps \
+    && rm -rf /tmp/pear /var/cache/apk/*
+
+COPY docker/php/php.ini      /usr/local/etc/php/conf.d/zz-zencoparent.ini
+COPY docker/php/fpm-env.conf /usr/local/etc/php-fpm.d/zz-zencoparent.conf
+COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && mkdir -p /var/log/php && chown www-data:www-data /var/log/php
+
+WORKDIR /var/www/html
+
+COPY --from=vendor /app/vendor/ vendor/
+COPY src/        src/
+COPY public/     public/
+COPY database/   database/
+COPY seed_admin.php composer.json LICENSE ./
+
+RUN mkdir -p storage && chown -R www-data:www-data storage
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm"]
+
+# ── nginx ────────────────────────────────────────────────────────────────────
+FROM nginx:1.27-alpine AS nginx
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY public/ /var/www/html/public/
