@@ -11,7 +11,7 @@ require __DIR__ . '/vendor/autoload.php';
 use Dotenv\Dotenv;
 
 $envFile = $_ENV['ZENCO_ENV_FILE'] ?? getenv('ZENCO_ENV_FILE') ?: '.env.saas';
-Dotenv::createImmutable(__DIR__, $envFile)->load();
+Dotenv::createImmutable(__DIR__, $envFile)->safeLoad();
 
 $dsn = sprintf(
     'pgsql:host=%s;port=%s;dbname=%s',
@@ -51,15 +51,15 @@ if ($tenant) {
 $email    = 'admin@zencoparent.local';
 $password = 'Admin1234!';
 
-$row = $pdo->prepare('SELECT id FROM users WHERE tenant_id = :tid AND email = :email');
-$row->execute(['tid' => $tenantId, 'email' => $email]);
-$user = $row->fetch();
+// Runs on every container start: never touch an existing admin, or a restart would reset its credentials.
+$row = $pdo->prepare("SELECT id FROM users WHERE tenant_id = :tid AND role = 'admin' LIMIT 1");
+$row->execute(['tid' => $tenantId]);
+$existingAdmin = $row->fetch();
 
 $hash = password_hash($password, PASSWORD_BCRYPT);
-if ($user) {
-    $pdo->prepare('UPDATE users SET password_hash = :hash, must_change_credentials = true WHERE id = :id')
-        ->execute(['hash' => $hash, 'id' => $user['id']]);
-    echo "[OK]   User '{$email}' mot de passe mis à jour (id={$user['id']})\n";
+if ($existingAdmin) {
+    echo "[SKIP] Un admin existe déjà pour '{$tenantSlug}' (id={$existingAdmin['id']}), rien à faire.\n";
+    exit(0);
 } else {
     $pdo->prepare(
         "INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, role, is_active, must_change_credentials, created_at, updated_at)

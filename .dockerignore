@@ -18,6 +18,18 @@ vendor/
 # ── Runtime artifacts ─────────────────────────────────────────────────────────
 storage/
 
+# ── Not needed at runtime (tests, tooling, private scripts, other apps) ───────
+tests/
+phpunit.xml
+.phpunit.*
+scripts/
+android/
+deploy/
+.github/
+.claude/
+.claudecode/
+*.md
+
 # ── OS noise ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

@@ -1,0 +1,106 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ZenCoParent — déploiement production
+#
+#   cp .env.example .env      # puis remplir les secrets
+#   docker compose up -d --build
+#
+# Les images sont construites directement depuis GitHub (ZENCO_SOURCE) :
+# aucun dossier source à copier sur le serveur, juste ce fichier et .env.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: zencoparent-prod
+
+x-php-env: &php-env
+  env_file: .env
+  networks: [zencoparent]
+
+services:
+
+  nginx:
+    build:
+      context: ${ZENCO_SOURCE:-https://github.com/frenchtux/ZenCoParent.git#main}
+      dockerfile: docker/Dockerfile.prod
+      target: nginx
+    image: zencoparent-nginx:local
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      php:
+        condition: service_started
+    networks: [zencoparent]
+
+  php:
+    <<: *php-env
+    build:
+      context: ${ZENCO_SOURCE:-https://github.com/frenchtux/ZenCoParent.git#main}
+      dockerfile: docker/Dockerfile.prod
+      target: php
+    image: zencoparent-php:local
+    restart: unless-stopped
+    volumes:
+      - storage:/var/www/html/storage
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # Applique les migrations SQL manquantes, à chaque démarrage (idempotent).
+  migrate:
+    <<: *php-env
+    image: zencoparent-php:local
+    pull_policy: never
+    command: ["php", "database/migrations/migrate.php"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Crée le tenant et l'admin initial s'ils n'existent pas encore.
+  seed:
+    <<: *php-env
+    image: zencoparent-php:local
+    pull_policy: never
+    command: ["php", "seed_admin.php"]
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_DATABASE:-zencoparent}
+      POSTGRES_USER:     ${DB_USERNAME:-zencoparent}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD doit être défini dans .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-zencoparent} -d ${DB_DATABASE:-zencoparent}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [zencoparent]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [zencoparent]
+
+networks:
+  zencoparent:
+
+volumes:
+  pgdata:
+  redis:
+  storage:
