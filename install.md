@@ -210,7 +210,9 @@ Les fichiers sont écrits dans `STORAGE_PATH` (par défaut `/var/www/html/storag
 
 ## Étape 8 — HTTPS en production
 
-**Certbot (recommandé) :**
+**Recommandé : le package [`deploy/`](deploy/README.md)**, qui embarque un reverse proxy Caddy et gère le certificat Let's Encrypt tout seul à partir d'`APP_URL`.
+
+Avec ce `docker-compose.yml` de développement, il faut un proxy externe. **Certbot :**
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
