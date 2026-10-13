@@ -13,6 +13,7 @@ use ZenCoParent\Application\Event\GetEventHandler;
 use ZenCoParent\Application\Event\ListEventsHandler;
 use ZenCoParent\Application\Event\UpdateEventCommand;
 use ZenCoParent\Application\Event\UpdateEventHandler;
+use ZenCoParent\Application\Notification\PushNotificationService;
 
 final class EventController
 {
@@ -22,6 +23,7 @@ final class EventController
         private GetEventHandler    $getHandler,
         private UpdateEventHandler $updateHandler,
         private DeleteEventHandler $deleteHandler,
+        private PushNotificationService $pushNotifications,
     ) {}
 
     public function index(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -75,6 +77,7 @@ final class EventController
         );
 
         $eventDto = $this->createHandler->handle($command);
+        $this->pushNotifications->eventCreated($tenantId, $userId, $command->title, $command->startAt, $command->allDay);
 
         return ApiResponse::success($response, $eventDto->toArray(), 201);
     }

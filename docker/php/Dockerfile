@@ -6,6 +6,7 @@ RUN apk add --no-cache \
     libzip-dev \
     icu-dev \
     oniguruma-dev \
+    gmp-dev \
     curl \
     su-exec \
     $PHPIZE_DEPS
@@ -17,7 +18,8 @@ RUN docker-php-ext-install \
     intl \
     zip \
     mbstring \
-    pcntl
+    pcntl \
+    gmp
 
 # Install Redis extension via PECL
 RUN pecl install redis \

@@ -16,6 +16,7 @@ final class TenantSettingsService
         'mail_password',
         'oauth_google_client_secret',
         'paypal_client_secret',
+        'vapid_keys',
     ];
 
     // SMTP keys exposed through the API
@@ -229,6 +230,26 @@ final class TenantSettingsService
             return null;
         }
         return in_array($key, self::SENSITIVE_KEYS, true) ? $this->decrypt((string) $row) : (string) $row;
+    }
+
+    /**
+     * Returns the stored value, creating it with $factory on first use. Concurrent
+     * first calls all end up with the same value: only the first INSERT wins.
+     */
+    public function getOrCreateSystemSetting(string $key, callable $factory): string
+    {
+        $existing = $this->getSystemSetting($key);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $value  = (string) $factory();
+        $stored = in_array($key, self::SENSITIVE_KEYS, true) ? $this->encrypt($value) : $value;
+        $this->pdo->prepare(
+            'INSERT INTO app_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING'
+        )->execute(['key' => $key, 'val' => $stored]);
+
+        return (string) $this->getSystemSetting($key);
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────

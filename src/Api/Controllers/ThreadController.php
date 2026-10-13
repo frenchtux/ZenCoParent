@@ -14,6 +14,7 @@ use ZenCoParent\Application\Messaging\ListMessagesHandler;
 use ZenCoParent\Application\Messaging\MarkMessageReadHandler;
 use ZenCoParent\Application\Messaging\SendMessageCommand;
 use ZenCoParent\Application\Messaging\SendMessageHandler;
+use ZenCoParent\Application\Notification\PushNotificationService;
 
 final class ThreadController
 {
@@ -24,6 +25,7 @@ final class ThreadController
         private ListMessagesHandler   $listMessagesHandler,
         private SendMessageHandler    $sendMessageHandler,
         private MarkMessageReadHandler $markReadHandler,
+        private PushNotificationService $pushNotifications,
     ) {}
 
     public function index(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -106,6 +108,7 @@ final class ThreadController
         );
 
         $messageDto = $this->sendMessageHandler->handle($command);
+        $this->pushNotifications->messageSent($threadId, $userId, $command->content);
 
         return ApiResponse::success($response, $messageDto->toArray(), 201);
     }
