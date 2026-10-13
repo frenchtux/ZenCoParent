@@ -15,6 +15,7 @@ use ZenCoParent\Api\Controllers\ExpenseController;
 use ZenCoParent\Api\Controllers\InvitationController;
 use ZenCoParent\Api\Controllers\MedicalRecordController;
 use ZenCoParent\Api\Controllers\PhotoController;
+use ZenCoParent\Api\Controllers\PushController;
 use ZenCoParent\Api\Controllers\ThreadController;
 use ZenCoParent\Api\Controllers\UserController;
 use ZenCoParent\Api\Middleware\AuthMiddleware;
@@ -159,6 +160,14 @@ return function (App $app): void {
 
         // Notifications summary (unread count)
         $outer->get('/notifications/summary', [NotificationController::class, 'summary']);
+
+        // Web Push (PWA)
+        $outer->group('/push', function (RouteCollectorProxy $group): void {
+            $group->get('/public-key',      [PushController::class, 'publicKey']);
+            $group->post('/subscriptions',  [PushController::class, 'subscribe']);
+            $group->delete('/subscriptions', [PushController::class, 'unsubscribe']);
+            $group->post('/test',           [PushController::class, 'test']);
+        });
 
         // Account: GDPR export + account deletion
         $outer->get('/account/export',  [AccountController::class, 'export']);

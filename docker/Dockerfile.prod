@@ -18,9 +18,10 @@ RUN composer dump-autoload --no-dev --optimize
 # ── php-fpm ──────────────────────────────────────────────────────────────────
 FROM php:8.2-fpm-alpine AS php
 
-RUN apk add --no-cache libpq icu-libs \
-    && apk add --no-cache --virtual .build-deps libpq-dev icu-dev $PHPIZE_DEPS \
-    && docker-php-ext-install pdo_pgsql intl opcache \
+# gmp: fast elliptic-curve maths for Web Push (VAPID signing, payload encryption).
+RUN apk add --no-cache libpq icu-libs gmp \
+    && apk add --no-cache --virtual .build-deps libpq-dev icu-dev gmp-dev $PHPIZE_DEPS \
+    && docker-php-ext-install pdo_pgsql intl opcache gmp \
     && apk del .build-deps \
     && rm -rf /tmp/pear /var/cache/apk/*
 

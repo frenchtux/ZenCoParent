@@ -69,9 +69,10 @@ final class AuthController
             return ApiResponse::error($response, 'Fields email, password and tenant_slug are required', 400);
         }
 
-        $result = $this->loginHandler->handle(new LoginCommand($email, $password, $tenantSlug));
+        $result   = $this->loginHandler->handle(new LoginCommand($email, $password, $tenantSlug));
+        $remember = filter_var($body['remember'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
-        return $this->applyAuthCookies($response, $result)
+        return $this->applyAuthCookies($response, $result, $remember)
             ->withStatus(200);
     }
 
@@ -98,7 +99,7 @@ final class AuthController
 
         $result = $this->refreshHandler->handle(new RefreshTokenCommand($refreshToken));
 
-        return $this->applyAuthCookies($response, $result);
+        return $this->applyAuthCookies($response, $result, self::rememberFrom($cookies));
     }
 
     public function oauthRedirect(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -191,14 +192,14 @@ final class AuthController
             }
         }
 
-        $secure    = ($_ENV['APP_ENV'] ?? 'production') !== 'local' ? '; Secure' : '';
-        $jwtExpiry = (int) ($_ENV['JWT_EXPIRY'] ?? 3600);
+        $persist   = self::rememberFrom($request->getCookieParams());
+        $jwtExpiry = $persist ? (int) ($_ENV['JWT_EXPIRY'] ?? 3600) : null;
 
         $newAccessToken = $this->jwt->generateAccessToken($userId, $tenantId, $role);
         $csrfToken      = bin2hex(random_bytes(32));
 
-        $jwtCookie  = "jwt={$newAccessToken}; Path=/; HttpOnly; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
-        $csrfCookie = "csrf_token={$csrfToken}; Path=/; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
+        $jwtCookie  = self::cookie('jwt', $newAccessToken, '/', true, $jwtExpiry);
+        $csrfCookie = self::cookie('csrf_token', $csrfToken, '/', false, $jwtExpiry);
 
         return ApiResponse::success($response, [
             'tenant_id' => $tenantId,
@@ -211,37 +212,57 @@ final class AuthController
 
     // ─── Cookie helpers ───────────────────────────────────────────────────────
 
-    private function applyAuthCookies(ResponseInterface $response, LoginResult $result): ResponseInterface
+    /**
+     * $persist = "rester connecté": cookies survive a browser/app restart. Otherwise
+     * they are session cookies and the session ends when the browser closes.
+     */
+    private function applyAuthCookies(ResponseInterface $response, LoginResult $result, bool $persist = true): ResponseInterface
     {
-        $secure      = ($_ENV['APP_ENV'] ?? 'production') !== 'local' ? '; Secure' : '';
-        $jwtExpiry   = (int) ($_ENV['JWT_EXPIRY']         ?? 3600);
-        $rfExpiry    = (int) ($_ENV['JWT_REFRESH_EXPIRY'] ?? 2592000);
-
-        $jwtCookie = "jwt={$result->accessToken}; Path=/; HttpOnly; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
-        $rfCookie  = "refresh_token={$result->refreshToken}; Path=/auth/refresh; HttpOnly; SameSite=Strict{$secure}; Max-Age={$rfExpiry}";
+        $jwtExpiry = $persist ? (int) ($_ENV['JWT_EXPIRY']         ?? 3600)    : null;
+        $rfExpiry  = $persist ? (int) ($_ENV['JWT_REFRESH_EXPIRY'] ?? 2592000) : null;
 
         // csrf_token is NOT HttpOnly — the client JS reads it and sends as X-CSRF-Token header
-        $csrfToken  = bin2hex(random_bytes(32));
-        $csrfCookie = "csrf_token={$csrfToken}; Path=/; SameSite=Strict{$secure}; Max-Age={$jwtExpiry}";
+        $csrfToken = bin2hex(random_bytes(32));
 
         return ApiResponse::success($response, [
             'user'                   => $result->user->toArray(),
             'pending_medical_reports'=> $result->pendingMedicalReports,
         ])
-            ->withAddedHeader('Set-Cookie', $jwtCookie)
-            ->withAddedHeader('Set-Cookie', $rfCookie)
-            ->withAddedHeader('Set-Cookie', $csrfCookie);
+            ->withAddedHeader('Set-Cookie', self::cookie('jwt', $result->accessToken, '/', true, $jwtExpiry))
+            ->withAddedHeader('Set-Cookie', self::cookie('refresh_token', $result->refreshToken, '/auth/refresh', true, $rfExpiry))
+            ->withAddedHeader('Set-Cookie', self::cookie('csrf_token', $csrfToken, '/', false, $jwtExpiry))
+            // Lets /auth/refresh and /auth/switch-tenant re-issue cookies with the same lifetime.
+            ->withAddedHeader('Set-Cookie', self::cookie('remember', $persist ? '1' : '0', '/auth', true, $rfExpiry));
     }
 
     private function clearAuthCookies(ResponseInterface $response): ResponseInterface
     {
-        $jwtClear  = 'jwt=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0';
-        $rfClear   = 'refresh_token=; Path=/auth/refresh; HttpOnly; SameSite=Strict; Max-Age=0';
-        $csrfClear = 'csrf_token=; Path=/; SameSite=Strict; Max-Age=0';
-
         return ApiResponse::success($response, null)
-            ->withAddedHeader('Set-Cookie', $jwtClear)
-            ->withAddedHeader('Set-Cookie', $rfClear)
-            ->withAddedHeader('Set-Cookie', $csrfClear);
+            ->withAddedHeader('Set-Cookie', self::cookie('jwt', '', '/', true, 0))
+            ->withAddedHeader('Set-Cookie', self::cookie('refresh_token', '', '/auth/refresh', true, 0))
+            ->withAddedHeader('Set-Cookie', self::cookie('csrf_token', '', '/', false, 0))
+            ->withAddedHeader('Set-Cookie', self::cookie('remember', '', '/auth', true, 0));
+    }
+
+    /** Sessions opened before the "remember" cookie existed keep their persistent cookies. */
+    private static function rememberFrom(array $cookies): bool
+    {
+        return ($cookies['remember'] ?? '1') !== '0';
+    }
+
+    /** $maxAge null = session cookie, deleted when the browser closes. */
+    private static function cookie(string $name, string $value, string $path, bool $httpOnly, ?int $maxAge): string
+    {
+        $cookie = "{$name}={$value}; Path={$path}; SameSite=Strict";
+        if ($httpOnly) {
+            $cookie .= '; HttpOnly';
+        }
+        if (($_ENV['APP_ENV'] ?? 'production') !== 'local') {
+            $cookie .= '; Secure';
+        }
+        if ($maxAge !== null) {
+            $cookie .= "; Max-Age={$maxAge}";
+        }
+        return $cookie;
     }
 }

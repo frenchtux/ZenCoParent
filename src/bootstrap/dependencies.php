@@ -284,6 +284,26 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
 
+        // ── Web Push ─────────────────────────────────────────────────────────
+        \ZenCoParent\Domain\Notification\PushSubscriptionRepositoryInterface::class => function (ContainerInterface $c) {
+            return new \ZenCoParent\Infrastructure\Persistence\PostgreSQL\PostgreSQLPushSubscriptionRepository($c->get(\PDO::class));
+        },
+
+        \ZenCoParent\Domain\Notification\PushSenderInterface::class => function (ContainerInterface $c) {
+            // VAPID requires a contact: the public https URL, or a mailto: for plain-http setups.
+            $appUrl  = (string) ($_ENV['APP_URL'] ?? '');
+            $subject = str_starts_with($appUrl, 'https://')
+                ? $appUrl
+                : 'mailto:' . ($_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@zencoparent.local');
+
+            return new \ZenCoParent\Infrastructure\Notification\WebPushGateway(
+                $c->get(TenantSettingsService::class),
+                $c->get(\ZenCoParent\Domain\Notification\PushSubscriptionRepositoryInterface::class),
+                $c->get(LoggerInterface::class),
+                $subject,
+            );
+        },
+
         // ── Logger ───────────────────────────────────────────────────────────
         LoggerInterface::class => function () {
             $logger  = new \Monolog\Logger('zencoparent');
